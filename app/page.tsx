@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import {
   Check,
   ChevronDown,
@@ -24,9 +24,51 @@ const agents = [
 ] as const;
 
 export default function CompanyPage() {
+  const socketRef = useRef<WebSocket | null>(null);
+  const [connected, setConnected] = useState(false);
   const [approved, setApproved] = useState(false);
   const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<Array<{ id: string; role: "user" | "assistant"; name: string; text: string }>>([]);
+  const [sessionKey, setSessionKey] = useState("agent:ceo:company-survival-test");
+  const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    const socket = new WebSocket(`${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/api/gateway/ws`);
+    socketRef.current = socket;
+    socket.onopen = () => socket.send(JSON.stringify({ type: "req", id: "connect", method: "connect", params: { minProtocol: 3, maxProtocol: 4, client: { id: "openclaw-control-ui", version: "ai-company-chat", mode: "webchat", platform: "web" }, role: "operator", scopes: ["operator.read", "operator.write", "operator.admin", "operator.approvals", "operator.pairing"] } }));
+    socket.onmessage = (event) => {
+      const frame = JSON.parse(String(event.data));
+      if (frame.type === "event" && frame.event === "connect.challenge") return;
+      if (frame.type === "res" && frame.id === "connect") {
+        if (!frame.ok) return setError(frame.error?.message || "Gateway 연결 실패");
+        setConnected(true);
+        send(socket, "agents", "agents.list", {});
+        send(socket, "history", "chat.history", { sessionKey: "agent:ceo:company-survival-test", limit: 80 });
+      }
+      if (frame.type === "res" && frame.id === "agents" && frame.ok) {
+        const ceo = frame.payload?.agents?.find((agent: { id?: string }) => agent.id === "ceo")?.id || "ceo";
+        const nextKey = `agent:${ceo}:company-survival-test`;
+        setSessionKey(nextKey);
+        send(socket, "history", "chat.history", { sessionKey: nextKey, limit: 80 });
+      }
+      if (frame.type === "res" && frame.id === "history" && frame.ok) {
+        const history = (frame.payload?.messages || []).map((item: { role?: string; content?: unknown }, index: number) => {
+          const role = item.role === "user" ? "user" : item.role === "assistant" ? "assistant" : null;
+          const text = extractText(item.content);
+          return role && text ? { id: `history-${index}`, role, name: role === "user" ? "You" : "CEO", text } : null;
+        }).filter(Boolean);
+        setMessages(history);
+      }
+      if (frame.type === "event" && frame.event === "chat" && frame.payload?.sessionKey === sessionKey && frame.payload?.state === "final") {
+        const text = extractText(frame.payload.message);
+        if (text) setMessages((current) => [...current, { id: newId(), role: "assistant", name: "CEO", text }]);
+      }
+    };
+    socket.onerror = () => setError("Gateway 연결 오류");
+    socket.onclose = () => setConnected(false);
+    return () => socket.close();
+  }, [sessionKey]);
 
   const notify = (text: string) => {
     setToast(text);
@@ -34,8 +76,19 @@ export default function CompanyPage() {
   };
 
   const approve = () => {
+    if (!socketRef.current || !connected) return;
+    send(socketRef.current, "handoff", "agents.handoff", { targetAgentId: "architect", sourceAgentId: "ceo", sourceLabel: "CEO", task: "CEO 승인 완료. 회사 생존 유형 테스트를 설계하고 Developer와 Reviewer에게 이어서 전달하세요.", context: "모바일 공유 중심 6문항 테스트, 4개 결과, 로그인·DB·광고 제외.", deliverables: ["화면 구조", "문항·결과 데이터 계약", "Developer/Reviewer handoff"], acceptanceCriteria: "실제 페이지로 구현 가능하고 모바일 공유 흐름이 명확해야 합니다.", idempotencyKey: newId() });
     setApproved(true);
-    notify("승인 완료 · 팀을 가동했습니다");
+    notify("승인 완료 · Architect handoff 전송");
+  };
+
+  const submit = (event: FormEvent) => {
+    event.preventDefault();
+    const text = message.trim();
+    if (!text || !socketRef.current || !connected) return;
+    setMessages((current) => [...current, { id: newId(), role: "user", name: "You", text }]);
+    send(socketRef.current, "send", "chat.send", { sessionKey, message: text, deliver: false, echoUserMessage: false, idempotencyKey: newId() });
+    setMessage("");
   };
 
   return (
@@ -62,20 +115,21 @@ export default function CompanyPage() {
       <main className={styles.main}>
         <header className={styles.topbar}>
           <div className={styles.crumb}><strong>AI Company</strong><span>/</span>오늘의 회사 생존 테스트</div>
-          <div className={styles.topActions}><span className={styles.connection}><i />Gateway online</span><button className={styles.iconButton} aria-label="설정"><Settings size={15} /></button></div>
+          <div className={styles.topActions}><span className={styles.connection}><i />{connected ? "Gateway online" : "Gateway offline"}</span><button className={styles.iconButton} aria-label="설정"><Settings size={15} /></button></div>
         </header>
         <section className={styles.conversation}>
           <div className={styles.sessionHead}><div><div className={styles.kicker}>CEO SESSION</div><h1>오늘의 회사 생존 테스트</h1><p>Updated just now · 4 agents available</p></div><span className={approved ? styles.runChipActive : styles.runChip}>{approved ? "Running" : "Awaiting approval"}</span></div>
-          <Message initial="J" name="You" time="16:42" user>회사 생존 유형 테스트를 만들어보고 싶어. <strong>모바일에서 공유하기 좋은 양산형 웹사이트</strong>로 만들어줘.</Message>
-          <Message initial="C" name="CEO" time="16:43">요구사항을 정리했습니다. 승인하면 Architect가 구조를 잡고 Developer가 구현한 뒤 Reviewer가 검증합니다.
+          {messages.length === 0 && connected && <Message initial="C" name="CEO" time="now">Gateway에 연결되었습니다. 아래 입력창에서 실제 CEO 에이전트에게 요구사항을 보내세요.</Message>}
+          {messages.map((item) => <Message key={item.id} initial={item.role === "user" ? "J" : "C"} name={item.name} time="now" user={item.role === "user"}>{item.text}</Message>)}
+          {connected && <Message initial="C" name="CEO" time="now">CEO 승인 후 Architect가 구조를 잡고 Developer가 구현한 뒤 Reviewer가 검증합니다.
             <div className={styles.brief}>
               <div className={styles.briefHead}><strong>Approval brief</strong><span>company-brain</span></div>
               <div className={styles.briefGrid}><BriefCell label="GOAL">30초 안에 끝나는 회사 생존 유형 테스트</BriefCell><BriefCell label="DELIVERABLE">모바일 랜딩 · 6문항 · 4개 결과 · 공유</BriefCell><BriefCell label="OUT OF SCOPE">로그인, DB, 광고, 관리자 통계</BriefCell><BriefCell label="HANDOFF">Architect → Developer → Reviewer</BriefCell></div>
               <div className={styles.briefFooter}><button className={styles.secondary} onClick={() => notify("CEO에게 수정 요청을 보냈습니다")}>수정 요청</button><button className={styles.approve} onClick={approve} disabled={approved}>{approved ? <><Check size={14} /> Approved</> : "승인하고 진행"}</button></div>
             </div>
-          </Message>
-          {approved && <Message initial="C" name="CEO" time="now">승인 확인했습니다. 팀을 가동합니다. 오른쪽 패널에서 진행 상황을 확인하세요.</Message>}
-          <form className={styles.composer} onSubmit={(event) => { event.preventDefault(); if (message.trim()) { notify("메시지를 CEO 세션에 추가했습니다"); setMessage(""); } }}><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="CEO에게 다음 작업을 요청하세요…" rows={2} /><div className={styles.composerFooter}><span>Enter to send · Shift + Enter for new line</span><div><button type="button" className={styles.attach} aria-label="첨부"><Paperclip size={14} /></button><button className={styles.send}>Send <Send size={13} /></button></div></div></form>
+          </Message>}
+          {error && <div className={styles.toast} role="alert">{error}</div>}
+          <form className={styles.composer} onSubmit={submit}><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder={connected ? "CEO에게 다음 작업을 요청하세요…" : "Gateway 연결을 기다리는 중…"} rows={2} disabled={!connected} /><div className={styles.composerFooter}><span>Enter to send · Shift + Enter for new line</span><div><button type="button" className={styles.attach} aria-label="첨부"><Paperclip size={14} /></button><button className={styles.send} disabled={!connected || !message.trim()}>Send <Send size={13} /></button></div></div></form>
         </section>
       </main>
 
@@ -84,6 +138,18 @@ export default function CompanyPage() {
       {toast && <div className={styles.toast} role="status">{toast}</div>}
     </div>
   );
+}
+
+function newId() { return globalThis.crypto?.randomUUID?.() || Math.random().toString(36).slice(2); }
+function send(socket: WebSocket, id: string, method: string, params: unknown) { socket.send(JSON.stringify({ type: "req", id, method, params })); }
+function extractText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) return value.map(extractText).filter(Boolean).join("\n");
+  if (value && typeof value === "object") {
+    const item = value as Record<string, unknown>;
+    return extractText(item.text ?? item.content ?? item.message ?? item.value);
+  }
+  return "";
 }
 
 function NavSection({ label, children }: { label: string; children: React.ReactNode }) { return <section><div className={styles.navLabel}>{label}</div><div className={styles.navList}>{children}</div></section>; }

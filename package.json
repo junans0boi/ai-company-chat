@@ -2,9 +2,9 @@
   "name": "ai-company-chat",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "node server/index.js --dev",
     "build": "next build",
-    "start": "next start",
+    "start": "node server/index.js",
     "lint": "eslint ."
   },
   "dependencies": {
