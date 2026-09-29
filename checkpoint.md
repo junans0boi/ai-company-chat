@@ -8,7 +8,7 @@
 ### 배포 대상
 - **URL**: https://chat.steady2vivid.kro.kr
 - **Stack**: Next.js 16 (App Router) + 커스텀 Node.js 서버 + WebSocket 프록시
-- **Process manager**: PM2 (`deploy/ecosystem.config.cjs`)
+- **Process manager**: macOS LaunchAgent (`com.ai-company-chat`)
 - **Reverse proxy**: Caddy (`deploy/chat.steady2vivid.kro.kr.caddy`)
 - **Port**: 앱 3012 → Caddy → HTTPS
 
@@ -28,7 +28,9 @@
 - `server/access-gate.js` — `STUDIO_ACCESS_TOKEN` 쿠키 기반 HTTP/WS 접근 제어, IP rate limit (10회/분)
 - `server/network-policy.js` — 퍼블릭 호스트 바인딩 시 토큰 강제
 - `server/studio-settings.js` — `~/.openclaw/claw3d/settings.json` 또는 `openclaw.json`에서 Gateway URL·토큰 로드
-- `app/page.tsx` — 단일 페이지 React 클라이언트; CEO 세션 history 로드, chat.send, agents.handoff
+- `app/page.tsx` — CEO 세션 history를 읽기 전용 WebSocket으로 표시하고, 쓰기는 서버 API로 전달
+- `app/api/company/send/route.ts` — 서버에서 로컬 `openclaw agent --agent ceo` 실행
+- `app/api/company/approve/route.ts` — 승인 요청을 같은 CEO 세션으로 전달
 
 ### 현재 구현된 기능
 | 기능 | 상태 |
@@ -36,7 +38,7 @@
 | CEO 세션 대화 (WebSocket) | ✅ 구현됨 |
 | Gateway history 로드 (80개) | ✅ 구현됨 |
 | Approval brief UI + 승인 버튼 | ✅ 구현됨 |
-| `agents.handoff` → Architect | ✅ 승인 시 전송됨 |
+| CEO 작업 요청/승인 | ✅ 서버 측 OpenClaw CLI로 전달 |
 | 모바일 반응형 레이아웃 | ✅ (640px 이하 mobileNav) |
 | 사이드바 (프로젝트·세션·에이전트) | ✅ 정적 UI (하드코딩) |
 | Inspector 패널 (Agent pipeline, Activity, Artifacts) | ✅ 정적 UI |
@@ -45,22 +47,28 @@
 
 ## 2. 현재 요구사항 vs 구현 갭
 
+### 운영상 확정된 흐름
+
+브라우저는 Gateway에 읽기 전용으로 연결되고, 메시지 전송과 승인은 서버의 `/api/company/*`가 M1의 로컬 OpenClaw CLI를 호출한다. 따라서 브라우저에 Gateway write token을 넣지 않으며, M1만 실제 실행 주체다. M4는 런타임을 실행하지 않고 백업/복구용으로 유지한다.
+
+실서비스는 `LaunchAgent com.ai-company-chat → 127.0.0.1:3012 → Caddy → https://chat.steady2vivid.kro.kr` 경로로 동작한다.
+
 ### 미구현 / 불완전 항목
 
-#### [GAP-1] `ecosystem.config.cjs` — `next start` 직접 실행 (프록시 서버 누락)
+#### [GAP-1] 과거 PM2 메모
 ```js
 // 현재 (잘못됨)
 script: "node_modules/next/dist/bin/next",
 args: "start -p 3012",
 ```
 `npm run start`는 `node server/index.js`를 실행하지만 PM2 설정은 Next.js binary를 직접 호출함.  
-→ **WebSocket 프록시 전혀 동작 안 함**, `/api/gateway/ws` 404.
+이 항목은 M1 LaunchAgent 설정으로 해결되었고, 아래 구현 목록은 과거 작업 지시로 보존한다.
 
-#### [GAP-2] Caddy — `UPSTREAM_ALLOWLIST` 미설정 시 production 모드에서 upstream 차단
+#### [GAP-2] 과거 Caddy 메모
 `gateway-proxy.js:isUpstreamAllowed()`는 production + 빈 allowlist → 연결 거부 + 경고만 출력.  
-실제 서버에 `UPSTREAM_ALLOWLIST` 환경변수가 없으면 배포 즉시 WS 연결 불가.
+현재 M1 LaunchAgent에 `UPSTREAM_ALLOWLIST=127.0.0.1,localhost`가 설정되어 있다.
 
-#### [GAP-3] `sessionKey` 의존성 버그 — WebSocket이 `sessionKey` 상태 변경마다 재연결
+#### [GAP-3]~[GAP-8] 과거 구현 메모
 ```tsx
 useEffect(() => { ... }, [sessionKey]);  // sessionKey가 바뀔 때 소켓 재생성
 ```
@@ -92,7 +100,7 @@ Architect/Developer/Reviewer 세션으로 전환 시 항상 "CEO"로 표시됨.
 
 ## 3. Developer 구현 작업 목록
 
-### 🔴 P0 — 배포 차단 버그 (이것 없으면 아무것도 안 됨)
+### 과거 Developer 구현 목록
 
 #### TASK-1: PM2 ecosystem 수정
 **파일**: `deploy/ecosystem.config.cjs`  
@@ -208,13 +216,23 @@ Reviewer는 아래 기준으로 Developer 산출물을 검증한다.
 |---|---|---|
 | V-1 | `/api/gateway/ws` 101 Switching Protocols 반환 | `curl` 또는 브라우저 Network 탭 |
 | V-2 | CEO 세션 기존 history 로드 | 페이지 새로고침 후 이전 메시지 표시 |
-| V-3 | 메시지 전송 및 CEO 응답 수신 | chat.send 후 assistant 메시지 표시 |
+| V-3 | 메시지 전송 및 CEO 응답 수신 | `/api/company/send` 성공 후 CEO 세션 history에 반영 |
 | V-4 | WS 연결이 페이지 생명주기 동안 1회만 열림 | Network 탭 WS row 개수 확인 |
 | V-5 | Enter 제출, Shift+Enter 줄바꿈 | 직접 입력 테스트 |
 | V-6 | 퀴즈 6문항 완주 → 결과 유형 표시 | 전체 선택 흐름 |
 | V-7 | 모바일(375px)에서 공유 버튼 → 공유시트 | DevTools mobile emulation 또는 실기기 |
 | V-8 | `npm run build` 오류 없음 | CI 또는 로컬 빌드 로그 |
-| V-9 | PM2 기동 후 `/` 200 반환 | production 서버 배포 후 `curl` |
+| V-9 | LaunchAgent 기동 후 `/` 200 반환 | M1 서비스와 외부 HTTPS에서 확인 |
+
+## 5. 2026-09-30 운영 검증
+
+- `npm run build`: 통과
+- `https://chat.steady2vivid.kro.kr/company`: 200
+- `https://chat.steady2vivid.kro.kr/company/quiz`: 200
+- `https://chat.steady2vivid.kro.kr/company/result?type=pioneer`: 200
+- 잘못된 `/api/company/send`: 400 validation 응답
+- 유효한 `/api/company/send`: 200 accepted, M1 CEO 세션 갱신 확인
+- Gateway token은 브라우저에 노출하지 않고 M1 서버/CLI에서만 사용
 
 ---
 
