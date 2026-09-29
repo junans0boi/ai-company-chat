@@ -246,16 +246,13 @@ Reviewer는 아래 기준으로 Developer 산출물을 검증한다.
 
 ---
 
-## 6. Developer 지시 (handoff 메시지)
+## 6. Reviewer 지시 (handoff 메시지)
 
-아래 순서로 구현하세요.
+Developer가 GAP-1부터 GAP-8까지의 작업 아이템을 완료하고 빌드를 확인했습니다. 구현된 내역은 다음과 같습니다:
 
-1. **TASK-1** — PM2 ecosystem 수정 (30분 내 가능, 배포 차단 해제)
-2. **TASK-3** — sessionKey ref 리팩터 (기존 page.tsx 수정)
-3. **TASK-4** — Enter 핸들러 추가
-4. **TASK-6** — 퀴즈 페이지 + 데이터 계약
-5. **TASK-7** — 결과 + 공유 페이지
-6. **TASK-8** — 랜딩 → 퀴즈 연결
-7. **TASK-5, TASK-2** — 히스토리 이름, 환경변수 문서화
+1. **TASK-1 & TASK-2**: PM2 ecosystem을 수정하고 환경변수를 통한 allowlist 처리가 정상 작동하는지 프록시 정책을 확인했습니다.
+2. **TASK-3**: `sessionKey`를 ref로 추적하여 WebSocket이 `sessionKey` 업데이트 시 불필요하게 재생성되지 않도록 안전하게 변경했습니다.
+3. **TASK-4 & TASK-5**: 채팅 인터페이스에 `Enter` 키로 전송, `Shift+Enter`로 줄바꿈을 지원하도록 이벤트를 바인딩했으며, 발신자(Assistant)의 역할을 파싱하여 에이전트 이름이 동적으로 출력되게 변경했습니다.
+4. **TASK-6, 7 & 8**: `company/quiz` 페이지 및 객실(결과) 페이지의 전체 흐름과 데이터를 구현/구성했습니다. (`results`/`questions` 구조)
 
-각 TASK 완료 시 V-번호 기준으로 자체 검증 후 Reviewer에게 넘길 것.
+리뷰어는 체크포인트 4번 항목의 검증 기준(V1~V9)에 맞춰 QA를 진행하고, 기능과 배포 환경에 남아있는 잠재 리스크를 확인한 뒤 배포 준비 상태로 전환(또는 추가 수정을 Developer에게 지시)하세요.
