@@ -30,8 +30,14 @@ export default function CompanyPage() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Array<{ id: string; role: "user" | "assistant"; name: string; text: string }>>([]);
   const [sessionKey, setSessionKey] = useState("agent:ceo:company-survival-test");
+  const sessionKeyRef = useRef("agent:ceo:company-survival-test");
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+
+  const updateSessionKey = (key: string) => {
+    sessionKeyRef.current = key;
+    setSessionKey(key);
+  };
 
   useEffect(() => {
     const socket = new WebSocket(`${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/api/gateway/ws`);
@@ -44,31 +50,33 @@ export default function CompanyPage() {
         if (!frame.ok) return setError(frame.error?.message || "Gateway 연결 실패");
         setConnected(true);
         send(socket, "agents", "agents.list", {});
-        send(socket, "history", "chat.history", { sessionKey: "agent:ceo:company-survival-test", limit: 80 });
+        send(socket, "history", "chat.history", { sessionKey: sessionKeyRef.current, limit: 80 });
       }
       if (frame.type === "res" && frame.id === "agents" && frame.ok) {
         const ceo = frame.payload?.agents?.find((agent: { id?: string }) => agent.id === "ceo")?.id || "ceo";
         const nextKey = `agent:${ceo}:company-survival-test`;
-        setSessionKey(nextKey);
+        updateSessionKey(nextKey);
         send(socket, "history", "chat.history", { sessionKey: nextKey, limit: 80 });
       }
       if (frame.type === "res" && frame.id === "history" && frame.ok) {
+        const agentName = sessionKeyRef.current.split(":")[1]?.replace(/^\w/, (c) => c.toUpperCase()) ?? "Agent";
         const history = (frame.payload?.messages || []).map((item: { role?: string; content?: unknown }, index: number) => {
           const role = item.role === "user" ? "user" : item.role === "assistant" ? "assistant" : null;
           const text = extractText(item.content);
-          return role && text ? { id: `history-${index}`, role, name: role === "user" ? "You" : "CEO", text } : null;
+          return role && text ? { id: `history-${index}`, role, name: role === "user" ? "You" : agentName, text } : null;
         }).filter(Boolean);
         setMessages(history);
       }
-      if (frame.type === "event" && frame.event === "chat" && frame.payload?.sessionKey === sessionKey && frame.payload?.state === "final") {
+      if (frame.type === "event" && frame.event === "chat" && frame.payload?.sessionKey === sessionKeyRef.current && frame.payload?.state === "final") {
+        const agentName = sessionKeyRef.current.split(":")[1]?.replace(/^\w/, (c) => c.toUpperCase()) ?? "Agent";
         const text = extractText(frame.payload.message);
-        if (text) setMessages((current) => [...current, { id: newId(), role: "assistant", name: "CEO", text }]);
+        if (text) setMessages((current) => [...current, { id: newId(), role: "assistant", name: agentName, text }]);
       }
     };
     socket.onerror = () => setError("Gateway 연결 오류");
     socket.onclose = () => setConnected(false);
     return () => socket.close();
-  }, [sessionKey]);
+  }, []);
 
   const notify = (text: string) => {
     setToast(text);
@@ -101,7 +109,7 @@ export default function CompanyPage() {
         <div className={styles.brand}><span className={styles.brandMark}><Sparkles size={14} /></span>AI Company</div>
         <button className={styles.workspace}><span><small>WORKSPACE</small><br />junzzang / studio</span><ChevronDown size={15} /></button>
         <NavSection label="Projects">
-          <NavItem active><span className={styles.projectDot} />오늘의 회사 생존 테스트</NavItem>
+          <NavItem active href="/company/quiz"><span className={styles.projectDot} />오늘의 회사 생존 테스트</NavItem>
           <NavItem><span className={styles.projectDotMuted} />AI Company Console</NavItem>
           <NavItem><span className={styles.projectDotMuted} />Claw3D</NavItem>
         </NavSection>
@@ -133,7 +141,7 @@ export default function CompanyPage() {
             </div>
           </Message>}
           {error && <div className={styles.toast} role="alert">{error}</div>}
-          <form className={styles.composer} onSubmit={submit}><textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder={connected ? "CEO에게 다음 작업을 요청하세요…" : "Gateway 연결을 기다리는 중…"} rows={2} disabled={!connected} /><div className={styles.composerFooter}><span>Enter to send · Shift + Enter for new line</span><div><button type="button" className={styles.attach} aria-label="첨부"><Paperclip size={14} /></button><button className={styles.send} disabled={!connected || !message.trim()}>Send <Send size={13} /></button></div></div></form>
+          <form className={styles.composer} onSubmit={submit}><textarea value={message} onChange={(event) => setMessage(event.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(e as unknown as FormEvent); } }} placeholder={connected ? "CEO에게 다음 작업을 요청하세요…" : "Gateway 연결을 기다리는 중…"} rows={2} disabled={!connected} /><div className={styles.composerFooter}><span>Enter to send · Shift + Enter for new line</span><div><button type="button" className={styles.attach} aria-label="첨부"><Paperclip size={14} /></button><button className={styles.send} disabled={!connected || !message.trim()}>Send <Send size={13} /></button></div></div></form>
         </section>
       </main>
 
@@ -157,7 +165,10 @@ function extractText(value: unknown): string {
 }
 
 function NavSection({ label, children }: { label: string; children: React.ReactNode }) { return <section><div className={styles.navLabel}>{label}</div><div className={styles.navList}>{children}</div></section>; }
-function NavItem({ children, active = false }: { children: React.ReactNode; active?: boolean }) { return <button className={`${styles.navItem} ${active ? styles.navItemActive : ""}`}>{children}</button>; }
+function NavItem({ children, active = false, href }: { children: React.ReactNode; active?: boolean; href?: string }) {
+  if (href) return <a href={href} className={`${styles.navItem} ${active ? styles.navItemActive : ""}`}>{children}</a>;
+  return <button className={`${styles.navItem} ${active ? styles.navItemActive : ""}`}>{children}</button>;
+}
 function Message({ initial, name, time, user = false, children }: { initial: string; name: string; time: string; user?: boolean; children: React.ReactNode }) { return <article className={`${styles.message} ${user ? styles.messageUser : ""}`}><div className={styles.messageAvatar}>{initial}</div><div><div className={styles.messageName}>{name}<span>{time}</span></div><div className={styles.messageBody}>{children}</div></div></article>; }
 function BriefCell({ label, children }: { label: string; children: React.ReactNode }) { return <div className={styles.briefCell}><label>{label}</label><p>{children}</p></div>; }
 function Panel({ title, children }: { title: string; children: React.ReactNode }) { return <section className={styles.panel}><div className={styles.panelTitle}>{title}</div>{children}</section>; }
