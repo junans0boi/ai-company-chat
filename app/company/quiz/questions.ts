@@ -8,7 +8,6 @@ export type Choice = {
 
 export type Question = {
   id: string;
-  situation: string;
   text: string;
   choices: Choice[];
 };
@@ -16,99 +15,85 @@ export type Question = {
 export const QUESTIONS: Question[] = [
   {
     id: "q1",
-    situation: "📅 월요일 오전 9시",
-    text: "팀장이 갑자기 긴급 회의를 소집했다. 나의 첫 반응은?",
+    text: "아침 출근길, 회사에 도착했을 때 가장 먼저 하는 일은?",
     choices: [
-      { id: "a", label: "일단 조용히 앉아 상황을 파악한다. 티 내지 말자.", weight: { guardian: 3, optimizer: 0, connector: 1, pioneer: 0 } },
-      { id: "b", label: "메모장 열고 아젠다 정리 중. 나는 항상 준비됐다.", weight: { pioneer: 3, optimizer: 1, connector: 0, guardian: 0 } },
-      { id: "c", label: "빠르게 주변 분위기를 읽고 어느 편에 서야 할지 계산한다.", weight: { connector: 3, guardian: 1, optimizer: 0, pioneer: 0 } },
-      { id: "d", label: "속으론 한숨이지만 겉으론 씩씩하게. 어차피 내가 다 한다.", weight: { optimizer: 3, pioneer: 1, connector: 0, guardian: 0 } },
+      { id: "c1", label: "새로운 프로젝트 아이디어 구상하기", weight: { pioneer: 3, optimizer: 0, connector: 1, guardian: 0 } },
+      { id: "c2", label: "오늘의 일과표와 To-Do 리스트 점검하기", weight: { pioneer: 0, optimizer: 3, connector: 0, guardian: 1 } },
+      { id: "c3", label: "동료들에게 인사하며 커피 타임 가지기", weight: { pioneer: 1, optimizer: 0, connector: 3, guardian: 0 } },
+      { id: "c4", label: "어제 놓친 리스크나 문제점 확인하기", weight: { pioneer: 0, optimizer: 1, connector: 0, guardian: 3 } },
     ],
   },
   {
     id: "q2",
-    situation: "⚔️ 내부 정치의 시간",
-    text: "옆 팀 동료가 내 공을 슬쩍 가로채려 한다. 나는?",
+    text: "팀 회의 중 새로운 의견이 나왔을 때 당신의 반응은?",
     choices: [
-      { id: "a", label: "조용히 기록을 남겨둔다. 시간이 증명해줄 거야.", weight: { guardian: 3, optimizer: 0, connector: 0, pioneer: 0 } },
-      { id: "b", label: "즉시 사실관계를 정리해 팀장에게 보고한다.", weight: { pioneer: 3, optimizer: 1, connector: 0, guardian: 0 } },
-      { id: "c", label: "겉으론 웃으며 내 포지션을 자연스럽게 재확인시킨다.", weight: { connector: 3, guardian: 1, optimizer: 0, pioneer: 0 } },
-      { id: "d", label: "화가 나지만 지금은 그냥 넘어간다. 나중에 터지겠지.", weight: { optimizer: 2, guardian: 1, connector: 0, pioneer: 0 } },
+      { id: "c1", label: "흥미롭다! 당장 시도해보자고 추진한다", weight: { pioneer: 3, optimizer: 0, connector: 1, guardian: 0 } },
+      { id: "c2", label: "좋은 아이디어지만 효율적인 실행 방안을 고민한다", weight: { pioneer: 1, optimizer: 3, connector: 0, guardian: 0 } },
+      { id: "c3", label: "다른 팀원들의 생각은 어떤지 의견을 먼저 묻는다", weight: { pioneer: 0, optimizer: 0, connector: 3, guardian: 1 } },
+      { id: "c4", label: "혹시 발생할 수 있는 부작용은 없는지 보수적으로 접근한다", weight: { pioneer: 0, optimizer: 1, connector: 0, guardian: 3 } },
     ],
   },
   {
     id: "q3",
-    situation: "🌙 야근 공지 수신",
-    text: "야근 지시가 내려왔다. 저녁 약속이 있는데…",
+    text: "업무 메신저에 예상치 못한 긴급 이슈가 올라왔다. 당신은?",
     choices: [
-      { id: "a", label: "약속을 조용히 미룬다. 마찰은 피하는 게 상책.", weight: { guardian: 3, connector: 0, optimizer: 0, pioneer: 0 } },
-      { id: "b", label: "업무 우선순위를 명확히 정리하고 효율적으로 끝낸다.", weight: { optimizer: 3, pioneer: 1, connector: 0, guardian: 0 } },
-      { id: "c", label: "상황을 협상해서 양쪽을 반반 조율해본다.", weight: { connector: 3, pioneer: 0, optimizer: 1, guardian: 0 } },
-      { id: "d", label: "한숨 한 번 쉬고 양쪽 다 해낸다. 내 체력은 내가 책임진다.", weight: { pioneer: 3, optimizer: 1, guardian: 0, connector: 0 } },
+      { id: "c1", label: "일단 내가 직접 나서서 해결책을 찾고 빠르게 조치한다", weight: { pioneer: 3, optimizer: 1, connector: 0, guardian: 0 } },
+      { id: "c2", label: "관련 담당자를 즉시 파악하고 프로세스대로 분배한다", weight: { pioneer: 0, optimizer: 3, connector: 1, guardian: 0 } },
+      { id: "c3", label: "다들 당황하지 않게 팀 분위기를 다독이며 모은다", weight: { pioneer: 0, optimizer: 0, connector: 3, guardian: 1 } },
+      { id: "c4", label: "이전에도 비슷한 문제가 있었는지 기록을 먼저 살펴본다", weight: { pioneer: 1, optimizer: 0, connector: 0, guardian: 3 } },
     ],
   },
   {
     id: "q4",
-    situation: "🏕️ 워크숍 시즌",
-    text: "팀빌딩 게임 조장을 맡게 됐다. 나는?",
+    text: "회식 메뉴를 정해야 한다. 어떤 방식을 선호하는가?",
     choices: [
-      { id: "a", label: "맡긴 했지만 최대한 존재감 없이 진행한다.", weight: { guardian: 3, connector: 0, optimizer: 0, pioneer: 0 } },
-      { id: "b", label: "철저한 기획서 작성 후 완벽하게 진행한다.", weight: { optimizer: 3, pioneer: 1, connector: 0, guardian: 0 } },
-      { id: "c", label: "팀원 성향을 파악해 각자가 빛날 수 있는 판을 짠다.", weight: { connector: 3, pioneer: 0, optimizer: 0, guardian: 0 } },
-      { id: "d", label: "열정 넘치게 이끌었지만 끝나면 방전 직전이다.", weight: { pioneer: 3, optimizer: 0, connector: 1, guardian: 0 } },
+      { id: "c1", label: "요즘 유행하는 핫플레이스나 새로운 메뉴에 도전한다", weight: { pioneer: 3, optimizer: 0, connector: 1, guardian: 0 } },
+      { id: "c2", label: "예산과 동선을 꼼꼼히 따져서 가성비 좋은 곳을 골라서 투표한다", weight: { pioneer: 0, optimizer: 3, connector: 0, guardian: 1 } },
+      { id: "c3", label: "팀원들의 피드백을 모조리 취합해 모두가 만족할 곳을 찾는다", weight: { pioneer: 0, optimizer: 1, connector: 3, guardian: 0 } },
+      { id: "c4", label: "항상 가던 검증되고 실패없는 단골집으로 밀어붙인다", weight: { pioneer: 1, optimizer: 0, connector: 0, guardian: 3 } },
     ],
   },
   {
     id: "q5",
-    situation: "📊 인사평가 시즌",
-    text: "인사평가 시즌이 왔다. 나의 전략은?",
+    text: "내게 주어지면 가장 스트레스 받는 업무 상황은?",
     choices: [
-      { id: "a", label: "평소에 조용히 결과물을 쌓아뒀다. 알 사람은 안다.", weight: { guardian: 3, optimizer: 0, connector: 0, pioneer: 0 } },
-      { id: "b", label: "성과를 데이터로 정리해서 명확하게 어필한다.", weight: { optimizer: 3, pioneer: 1, connector: 0, guardian: 0 } },
-      { id: "c", label: "평가자 성향을 파악해 원하는 방식으로 어필한다.", weight: { connector: 3, pioneer: 0, optimizer: 1, guardian: 0 } },
-      { id: "d", label: "이만큼 했는데 왜 모르지? 억울한데 말은 못 하겠다.", weight: { pioneer: 2, guardian: 1, optimizer: 0, connector: 0 } },
+      { id: "c1", label: "하루 종일 반복되는 단순 서류 작업", weight: { pioneer: 3, optimizer: 0, connector: 1, guardian: 0 } },
+      { id: "c2", label: "목표나 기한이 불분명하고 두루뭉술한 업무 지시", weight: { pioneer: 0, optimizer: 3, connector: 0, guardian: 1 } },
+      { id: "c3", label: "서로 의견 충돌이 잦아 매번 중재해야 하는 분위기", weight: { pioneer: 0, optimizer: 1, connector: 3, guardian: 0 } },
+      { id: "c4", label: "안정성 검증도 안 된 상태에서 무작정 런칭해야 하는 상황", weight: { pioneer: 1, optimizer: 0, connector: 0, guardian: 3 } },
     ],
   },
   {
     id: "q6",
-    situation: "😶 번아웃의 전조",
-    text: "오늘 유독 아무것도 하기 싫다. 나는 어떻게 하나?",
+    text: "금요일 오후, 이번 주 나의 퍼포먼스를 평가해본다면?",
     choices: [
-      { id: "a", label: "최소한만 하고 조용히 버틴다. 이것도 생존 전략이다.", weight: { guardian: 3, connector: 0, optimizer: 0, pioneer: 0 } },
-      { id: "b", label: "스케줄을 재정비하고 핵심 업무에만 집중한다.", weight: { optimizer: 3, pioneer: 0, connector: 0, guardian: 0 } },
-      { id: "c", label: "동료나 환경을 바꿔 기분전환을 시도한다.", weight: { connector: 3, pioneer: 0, optimizer: 0, guardian: 0 } },
-      { id: "d", label: "그래도 끝까지 한다. 쉬고 싶지만 못 쉬는 게 더 맞다.", weight: { pioneer: 3, optimizer: 0, guardian: 0, connector: 0 } },
+      { id: "c1", label: "위험을 감수하더라도 새로운 시도를 하나 뚫어냈다", weight: { pioneer: 3, optimizer: 0, connector: 1, guardian: 0 } },
+      { id: "c2", label: "내가 계획한 타임라인대로 오차 없이 일을 마무리지었다", weight: { pioneer: 0, optimizer: 3, connector: 0, guardian: 1 } },
+      { id: "c3", label: "다른 팀과의 협업을 매끄럽게 조율해서 성과를 이끌었다", weight: { pioneer: 0, optimizer: 0, connector: 3, guardian: 1 } },
+      { id: "c4", label: "치명적인 실수가 나갈 뻔한 걸 내가 미리 발견하고 막았다", weight: { pioneer: 1, optimizer: 1, connector: 0, guardian: 3 } },
     ],
   },
 ];
 
-export const RESULTS: Record<ResultType, { title: string; sub: string; desc: string; emoji: string; traits: string[] }> = {
+export const RESULTS: Record<ResultType, { title: string; desc: string; emoji: string }> = {
   pioneer: {
-    emoji: "⚡",
-    title: "번아웃 직전 전사",
-    sub: "한계까지 달리는 당신, 쉬어도 돼",
-    desc: "당신의 에너지와 책임감은 누구보다 강합니다. 힘들어도 끝까지 해내고, 불합리해도 묵묵히 버팁니다. 하지만 그 열정이 스스로를 갉아먹고 있지는 않나요? 지금 당신에게 가장 필요한 것은 의도적인 휴식일 수 있어요.",
-    traits: ["압도적인 책임감과 실행력", "자기 감정을 뒤로 미루는 경향", "의도적 회복과 쉼이 필요"],
+    title: "불도저 혁신가 (Pioneer)",
+    desc: "도전을 두려워하지 않으며 늘 새로운 길을 개척하는 스타일입니다. 아이디어를 빠르게 실행에 옮기며 조직에 활기를 불어넣습니다.",
+    emoji: "🚀",
   },
   optimizer: {
-    emoji: "🌀",
-    title: "폭풍 속의 눈",
-    sub: "혼란 속에서도 중심을 잡는다",
-    desc: "혼돈이 몰아쳐도 당신은 흔들리지 않습니다. 명확한 기준과 구조적 사고로 복잡한 상황을 정리하고, 팀이 방향을 잃을 때 나침반 역할을 합니다. 논리와 원칙이 당신의 무기예요.",
-    traits: ["구조적 사고와 명확한 의사결정", "데이터 기반으로 움직이는 합리주의", "위기 상황에서 오히려 실력이 빛남"],
+    title: "극강의 효율주의자 (Optimizer)",
+    desc: "모든 프로세스를 깔끔하게 정돈하고 낭비를 최소화하는 데 탁월한 능력을 발휘합니다. 일 잘한다는 소리를 가장 많이 듣는 유형입니다.",
+    emoji: "⚙️",
   },
   connector: {
-    emoji: "🦎",
-    title: "적응형 카멜레온",
-    sub: "상황에 따라 변신하는 생존 전문가",
-    desc: "환경이 바뀌어도 당신은 언제나 최적의 형태로 변신합니다. 사람을 빠르게 파악하고, 필요할 때 필요한 모습을 보여주는 고도의 사회적 지능을 갖고 있어요. 생존은 당신에게 예술입니다.",
-    traits: ["탁월한 상황 적응력과 눈치", "관계 네트워크를 능숙하게 활용", "유연한 사고로 변화에 강함"],
+    title: "팀워크 마에스트로 (Connector)",
+    desc: "뛰어난 공감 능력과 커뮤니케이션으로 팀의 결속력을 다집니다. 조직의 윤활유 역할을 완벽하게 수행합니다.",
+    emoji: "🤝",
   },
   guardian: {
-    emoji: "🐢",
-    title: "조용한 생존자",
-    sub: "티 안 나게, 하지만 끝까지",
-    desc: "당신은 화려하지 않지만 가장 오래 남는 유형입니다. 소음 없이 결과를 만들고, 불필요한 충돌을 피하며, 조직의 흐름을 정확히 읽습니다. 폭풍이 지나가면 항상 자리를 지키고 있는 건 결국 당신이에요.",
-    traits: ["뛰어난 관찰력과 상황 판단력", "말보다 행동으로 신뢰를 쌓는 스타일", "갈등 회피로 에너지를 보존"],
+    title: "신뢰의 철벽 방패 (Guardian)",
+    desc: "리스크를 한 발 앞서 예측하고 철저하게 관리하는 신중파입니다. 회사 안의 큰 위기를 막아내는 숨은 영웅입니다.",
+    emoji: "🛡️",
   },
 };
