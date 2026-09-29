@@ -77,9 +77,11 @@ export default function CompanyPage() {
 
   const approve = () => {
     if (!socketRef.current || !connected) return;
-    send(socketRef.current, "handoff", "agents.handoff", { targetAgentId: "architect", sourceAgentId: "ceo", sourceLabel: "CEO", task: "CEO 승인 완료. 회사 생존 유형 테스트를 설계하고 Developer와 Reviewer에게 이어서 전달하세요.", context: "모바일 공유 중심 6문항 테스트, 4개 결과, 로그인·DB·광고 제외.", deliverables: ["화면 구조", "문항·결과 데이터 계약", "Developer/Reviewer handoff"], acceptanceCriteria: "실제 페이지로 구현 가능하고 모바일 공유 흐름이 명확해야 합니다.", idempotencyKey: newId() });
-    setApproved(true);
-    notify("승인 완료 · Architect handoff 전송");
+    void fetch("/api/company/approve", { method: "POST" }).then(async (response) => {
+      if (!response.ok) return setError((await response.json().catch(() => null))?.error || "팀 가동에 실패했습니다.");
+      setApproved(true);
+      notify("승인 완료 · CEO 작업 재개 지시 전송");
+    });
   };
 
   const submit = (event: FormEvent) => {
@@ -87,7 +89,9 @@ export default function CompanyPage() {
     const text = message.trim();
     if (!text || !socketRef.current || !connected) return;
     setMessages((current) => [...current, { id: newId(), role: "user", name: "You", text }]);
-    send(socketRef.current, "send", "chat.send", { sessionKey, message: text, deliver: false, echoUserMessage: false, idempotencyKey: newId() });
+    void fetch("/api/company/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: text, sessionKey }) }).then(async (response) => {
+      if (!response.ok) setError((await response.json().catch(() => null))?.error || "CEO에게 메시지를 전달하지 못했습니다.");
+    });
     setMessage("");
   };
 
