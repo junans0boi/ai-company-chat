@@ -30,7 +30,7 @@ export default function CompanyPage() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<Array<{ id: string; role: "user" | "assistant"; name: string; text: string }>>([]);
   const [sessionKey, setSessionKey] = useState("agent:ceo:company-survival-test");
-  const sessionKeyRef = useRef("agent:ceo:company-survival-test");
+  const sessionKeyRef = useRef<string>(sessionKey);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
 
@@ -75,7 +75,8 @@ export default function CompanyPage() {
     };
     socket.onerror = () => setError("Gateway 연결 오류");
     socket.onclose = () => setConnected(false);
-    return () => socket.close();
+    
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const notify = (text: string) => {

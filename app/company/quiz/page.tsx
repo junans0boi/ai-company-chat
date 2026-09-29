@@ -3,13 +3,10 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { QUESTIONS, ResultType } from "./questions";
-import { Sparkles, ChevronRight } from "lucide-react";
-import styles from "../../CompanyConsole.module.css";
-import quizStyles from "./Quiz.module.css";
 
 export default function QuizPage() {
   const router = useRouter();
-  const [currentIdx, setCurrentIdx] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [scores, setScores] = useState<Record<ResultType, number>>({
     pioneer: 0,
     optimizer: 0,
@@ -17,26 +14,21 @@ export default function QuizPage() {
     guardian: 0,
   });
 
-  const question = QUESTIONS[currentIdx];
-  const isFinished = currentIdx >= QUESTIONS.length;
-
   const handleChoice = (weight: Record<ResultType, number>) => {
-    const nextScores = { ...scores };
+    const newScores = { ...scores };
     (Object.keys(weight) as ResultType[]).forEach((key) => {
-      nextScores[key] += weight[key];
+      newScores[key] += weight[key];
     });
 
-    setScores(nextScores);
-
-    if (currentIdx + 1 < QUESTIONS.length) {
-      setCurrentIdx((prev) => prev + 1);
+    if (currentIndex < QUESTIONS.length - 1) {
+      setScores(newScores);
+      setCurrentIndex((prev) => prev + 1);
     } else {
-      // Find highest score
+      let topType = "pioneer" as ResultType;
       let maxScore = -1;
-      let topType: ResultType = "pioneer";
-      (Object.keys(nextScores) as ResultType[]).forEach((key) => {
-        if (nextScores[key] > maxScore) {
-          maxScore = nextScores[key];
+      (Object.keys(newScores) as ResultType[]).forEach((key) => {
+        if (newScores[key] > maxScore) {
+          maxScore = newScores[key];
           topType = key;
         }
       });
@@ -44,37 +36,67 @@ export default function QuizPage() {
     }
   };
 
-  if (isFinished || !question) return null; // Wait for navigation
-
+  const question = QUESTIONS[currentIndex];
+  // 0D0D0D base, C8FF00 lime green accent based on Nuhoxy MZ principles
   return (
-    <div className={quizStyles.quizApp}>
-      <header className={quizStyles.quizHeader}>
-        <div className={quizStyles.quizBrand}>
-          <span className={quizStyles.brandIcon}><Sparkles size={16} /></span>
-          AI Company 생존 테스트
-        </div>
-        <div className={quizStyles.progressIndicator}>
-          <span>{currentIdx + 1}</span> / {QUESTIONS.length}
+    <div style={{
+      backgroundColor: "#0D0D0D",
+      minHeight: "100vh",
+      display: "flex",
+      flexDirection: "column",
+      color: "white",
+      fontFamily: "'Pretendard ExtraBold', sans-serif"
+    }}>
+      <header style={{ padding: "16px", display: "flex", alignItems: "center", borderBottom: "1px solid #333" }}>
+        <h1 style={{ margin: 0, fontSize: "16px", flex: 1 }}>회사 생존 테스트</h1>
+        <div style={{ fontSize: "14px", fontFamily: "'Space Grotesk', sans-serif" }}>
+          {currentIndex + 1} / {QUESTIONS.length}
         </div>
       </header>
-
-      <div className={quizStyles.progressBar}>
-        <div 
-          className={quizStyles.progressFill} 
-          style={{ width: `${((currentIdx + 1) / QUESTIONS.length) * 100}%` }} 
-        />
+      
+      {/* Progress Bar */}
+      <div style={{ width: "100%", height: "4px", backgroundColor: "#333" }}>
+        <div style={{
+          width: `${((currentIndex + 1) / QUESTIONS.length) * 100}%`,
+          height: "100%",
+          backgroundColor: "#C8FF00",
+          transition: "width 0.3s ease-in-out"
+        }} />
       </div>
 
-      <main className={quizStyles.quizMain}>
-        <h1 className={quizStyles.questionText}>{question.text}</h1>
-        <div className={quizStyles.choiceGrid}>
-          {question.choices.map((c) => (
-            <button 
-              key={c.id} 
-              className={quizStyles.choiceBtn} 
-              onClick={() => handleChoice(c.weight)}
+      <main style={{ flex: 1, padding: "24px", display: "flex", flexDirection: "column" }}>
+        <h2 style={{ fontSize: "24px", wordBreak: "keep-all", lineHeight: 1.4, marginBottom: "32px", flex: 1 }}>
+          {question.text}
+        </h2>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {question.choices.map((choice) => (
+            <button
+              key={choice.id}
+              onClick={() => handleChoice(choice.weight)}
+              style={{
+                backgroundColor: "#1A1A1A",
+                color: "white",
+                border: "1px solid #333",
+                padding: "20px",
+                borderRadius: "12px",
+                textAlign: "left",
+                fontSize: "16px",
+                cursor: "pointer",
+                transition: "all 0.2s",
+                display: "block",
+                width: "100%"
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#C8FF00";
+                e.currentTarget.style.color = "#C8FF00";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#333";
+                e.currentTarget.style.color = "white";
+              }}
             >
-              {c.label}
+              {choice.label}
             </button>
           ))}
         </div>

@@ -1,3 +1,8 @@
+/**
+ * UPSTREAM_ALLOWLIST: Required in production. Comma-separated list of allowed upstream hostnames.
+ * If empty in production, connections will be rejected and a warning printed.
+ * Default for AI Company Chat M1 LaunchAgent: 127.0.0.1,localhost
+ */
 const { Buffer } = require("node:buffer");
 const { WebSocket, WebSocketServer } = require("ws");
 
