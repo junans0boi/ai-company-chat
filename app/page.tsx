@@ -9,7 +9,7 @@ import liveStyles from "./LiveConsole.module.css";
 type GatewayAgent = { id?: string; name?: string };
 type GatewaySession = { key?: string; displayName?: string; projectId?: string | null; lastMessagePreview?: string; agentId?: string; updatedAt?: number | null; status?: string; hasActiveRun?: boolean; pinned?: boolean };
 type Project = { id: string; name: string; directory: string; pinned: boolean; section: string; sessionKeys: string[] };
-type MessageItem = { id: string; role: "user" | "assistant"; name: string; text: string; toolCalls?: { name: string; count: number }[] };
+type MessageItem = { id: string; role: "user" | "assistant"; name: string; text: string; toolCalls?: { name: string; count: number }[]; timestamp?: number; elapsed?: number; outputTokens?: number };
 type Usage = { input: number; output: number; cost: number };
 type ModelOption = { id: string; name: string; provider: string; contextWindow: number; available: boolean; reasoning: boolean; input?: unknown };
 type ContextStats = { usedTokens: number; maxTokens: number; remainingTokens: number; percent: number };
@@ -168,6 +168,7 @@ export default function CompanyPage() {
     const agentName = displayName(key.split(":")[1] || "ceo");
     const streamId = newId();
     const historyVersion = ++historyRequestRef.current;
+    const startTime = Date.now();
     setMessages((prev) => [...prev, { id: newId(), role: "user", name: "You", text }, { id: streamId, role: "assistant", name: agentName, text: "", toolCalls: [] }]);
     setIsRunning(true);
     void (async () => {
@@ -195,8 +196,14 @@ export default function CompanyPage() {
             const calls = [...toolCounts.entries()].map(([name, count]) => ({ name, count }));
             setMessages((prev) => prev.map((m) => m.id === streamId ? { ...m, toolCalls: calls } : m));
           } else if (evt.type === "done") {
+            const elapsed = Math.round((Date.now() - startTime) / 1000);
             const result = await loadHistory(key).catch(() => null);
-            if (result && historyVersion === historyRequestRef.current) { setMessages(result.messages); setUsage(result.usage); }
+            if (result && historyVersion === historyRequestRef.current) {
+              const msgs = result.messages;
+              const last = msgs.at(-1);
+              if (last?.role === "assistant") { last.elapsed = elapsed; last.timestamp = Date.now(); last.outputTokens = result.usage.output; }
+              setMessages(msgs); setUsage(result.usage);
+            }
             break outer;
           } else if (evt.type === "error") {
             setError(evt.error || "오류가 발생했습니다.");
@@ -260,7 +267,7 @@ export default function CompanyPage() {
       <section className={styles.conversation} data-conversation>
         {newChatSetup && messages.length === 0 && <div className={styles.newChatSetup}><label>프로젝트<select value={activeProjectId} onChange={(event) => setActiveProjectId(event.target.value)}><option value="">프로젝트 없이 시작</option>{projects.filter((project) => project.section !== "보관된 프로젝트").map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>{activeProjectId && <label>디렉터리<input value={projects.find((project) => project.id === activeProjectId)?.directory || ""} readOnly /></label>}</div>}
         <div className={styles.sessionHead} data-session-head><div><div className={styles.kicker}>{sessionKey.split(":")[1] || "openclaw"}</div><h1>{sessions.find((s) => s.key === sessionKey)?.displayName || sessionTitle(sessionKey)}</h1></div></div>
-        {messages.map((item) => <Message key={item.id} initial={item.role === "user" ? "J" : "C"} name={item.name} time="live" user={item.role === "user"} toolCalls={item.toolCalls}><MarkdownText text={item.text} /></Message>)}
+        {messages.map((item) => <Message key={item.id} initial={item.role === "user" ? "J" : "C"} name={item.name} user={item.role === "user"} toolCalls={item.toolCalls} timestamp={item.timestamp} elapsed={item.elapsed} outputTokens={item.outputTokens} onCopy={() => navigator.clipboard.writeText(item.text).then(() => notify("복사됨")).catch(() => notify("복사 실패"))} onReply={() => setMessage((prev) => (prev ? `${prev}\n` : "") + `> ${item.text.slice(0, 100).replace(/\n/g, " ")}\n\n`)}><MarkdownText text={item.text} /></Message>)}
         {error && <div className={styles.toast} role="alert" data-toast>{error}</div>}
         <Composer message={message} setMessage={setMessage} submit={submit} connected={connected} slashQuery={slashQuery} commandMatches={commandMatches} skillMatches={skillMatches} selectSlash={selectSlash} plusOpen={plusOpen} setPlusOpen={setPlusOpen} contextOpen={contextOpen} setContextOpen={setContextOpen} permissionOpen={permissionOpen} setPermissionOpen={setPermissionOpen} modelOpen={modelOpen} setModelOpen={setModelOpen} thinkingOpen={thinkingOpen} setThinkingOpen={setThinkingOpen} permissionMode={permissionMode} setPermissionMode={setPermissionMode} model={model} setModel={setModel} models={models} oauth={oauth} thinking={thinking} setThinking={setThinking} fastMode={fastMode} setFastMode={setFastMode} usage={usage} context={context} attachments={attachments} setAttachments={setAttachments} notify={notify} />
       </section>
@@ -300,16 +307,24 @@ function ProjectGroup({ title, sessions, project, current, pinned, menuOpen, onO
   const [sectionOpen, setSectionOpen] = useState(false);
   return <div className={styles.projectGroup}><div className={styles.projectHeading} data-project-heading><Folder size={14} /><span>{title}{pinned ? " · 고정" : ""}</span>{project && <button aria-label={`${title} 프로젝트 메뉴`} onClick={onMenu}><MoreHorizontal size={15} /></button>}</div>{menuOpen && project && <div className={mobileStyles.projectMenu} data-project-menu role="menu"><button role="menuitem" onClick={() => onAction("pin", project)}><Pin size={14} />{pinned ? "고정 해제" : "고정"}</button><button role="menuitem" onClick={() => onAction("edit", project)}>⚙ 편집</button><button role="menuitem" aria-expanded={sectionOpen} onClick={() => setSectionOpen((open) => !open)}>☷ 섹션 <span>›</span></button>{sectionOpen && <div className={mobileStyles.projectSubmenu}><button onClick={() => onAction("section", project)}>{project.section === "보관된 프로젝트" ? "프로젝트로 이동" : "보관된 프로젝트로 이동"}</button></div>}<button role="menuitem" onClick={() => onAction("reveal", project)}><FolderOpen size={14} />Finder에서 보기</button><hr /><button role="menuitem" onClick={() => onAction("archive", project)}><Archive size={14} />채팅 보관</button><button role="menuitem" onClick={() => onAction("remove", project)}><X size={14} />프로젝트 제거</button></div>}{sessions.slice(0, 12).map((item) => <SessionNavItem key={item.key} item={item} active={item.key === current} onOpen={onOpen} onPin={onPin} onArchive={onArchive} onRename={onRename} />)}{sessions.length === 0 && <div className={mobileStyles.projectEmpty}>대화가 없습니다</div>}</div>;
 }
-function Message({ initial, name, time, user = false, toolCalls, children }: { initial: string; name: string; time: string; user?: boolean; toolCalls?: { name: string; count: number }[]; children: React.ReactNode }) {
+function Message({ initial, name, user = false, toolCalls, timestamp, elapsed, outputTokens, onCopy, onReply, children }: { initial: string; name: string; user?: boolean; toolCalls?: { name: string; count: number }[]; timestamp?: number; elapsed?: number; outputTokens?: number; onCopy?: () => void; onReply?: () => void; children: React.ReactNode }) {
   const [expanded, setExpanded] = useState(false);
-  if (user) return <article className={`${styles.message} ${styles.messageUser}`}><div className={styles.userBubble}>{children}</div></article>;
+  if (user) return <article className={`${styles.message} ${styles.messageUser}`}><div className={styles.userBubble}>{children}<button className={styles.bubbleCopy} onClick={onCopy} title="복사" aria-label="복사">⎘</button></div></article>;
   const thinking = toolCalls !== undefined && !String((children as React.ReactElement<{ text?: string }>)?.props?.text || "").trim();
+  const meta = [elapsed ? `${elapsed}초` : null, outputTokens ? `${outputTokens >= 1000 ? `${(outputTokens / 1000).toFixed(1)}k` : outputTokens} 토큰` : null, timestamp ? relativeTime(timestamp) : null].filter(Boolean).join(" · ");
   return <article className={styles.message}>
     <div className={styles.messageAvatar}>{initial}</div>
     <div className={styles.messageContent}>
       {toolCalls !== undefined && toolCalls.length === 0 && thinking && <div className={styles.toolCallSummary}><span className={styles.thinkingDots}>생각 중</span></div>}
       {toolCalls !== undefined && toolCalls.length > 0 && <div className={styles.toolCallSummary}><button onClick={() => setExpanded((v) => !v)}>생각 중 · {toolCalls.length}개 도구 사용 [{expanded ? "접기" : "펼치기"}]</button>{expanded && <ul className={styles.toolCallDetails}>{toolCalls.map((tc) => <li key={tc.name}>{tc.name} × {tc.count}</li>)}</ul>}</div>}
-      {!thinking && <><div className={styles.messageName}>{name}<span>{time}</span></div><div className={styles.messageBody} data-message-body>{children}</div></>}
+      {!thinking && <>
+        <div className={styles.messageName}>{name}{meta && <span>{meta}</span>}</div>
+        <div className={styles.messageBody} data-message-body>{children}</div>
+        <div className={styles.messageActions}>
+          <button onClick={onCopy} title="복사" aria-label="복사">복사</button>
+          <button onClick={onReply} title="답장" aria-label="답장">답장</button>
+        </div>
+      </>}
     </div>
   </article>;
 }
