@@ -1,7 +1,7 @@
 .mobileSidebarOpen [data-mobile-sidebar]{display:flex;position:fixed;z-index:21;top:0;bottom:63px;left:0;width:min(330px,calc(100vw - 48px));overflow-y:auto;padding:16px 12px;gap:18px;transform:translateX(0);transition:transform .2s ease;box-shadow:12px 0 32px #0005}
 .sidebarBackdrop{display:block;position:fixed;z-index:20;inset:0 0 63px;border:0;background:#0009}
-.connected{background:#c8ff00!important;box-shadow:0 0 12px #c8ff00!important}
-.disconnected{background:#e05252!important;box-shadow:0 0 8px #e05252!important}
+.connected{background:#9fff54!important;box-shadow:0 0 8px #9fff5466!important}
+.disconnected{background:#e05252!important;box-shadow:0 0 6px #e0525266!important}
 .projectDialogBackdrop{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:16px;background:#0008}
 .projectDialog{width:min(480px,100%);padding:22px;border:1px solid #e9e2dd;border-radius:15px;background:#fff;color:#302c29;box-shadow:0 22px 70px #0005}
 .projectDialog header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px}
@@ -24,6 +24,11 @@
 .projectSubmenu button{width:100%;padding:8px;border:0;border-radius:6px;background:transparent;text-align:left;font-size:11px;color:#554e48}
 .directoryPicker{display:grid;gap:8px;margin-top:10px;padding:10px;border:1px solid #e5ded8;border-radius:10px;background:#faf8f6}.directoryPickerBar{display:flex;align-items:center;gap:8px;min-width:0}.directoryPickerBar button{flex:0 0 30px;width:30px;height:30px;border:1px solid #ded7d1;border-radius:7px;background:#fff;color:#4c4540;font-size:16px}.directoryPickerBar button:disabled{opacity:.4}.directoryPickerBar code{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#71675f;font:11px ui-monospace,SFMono-Regular,Menlo,monospace}.directoryList{display:grid;gap:2px;min-height:96px;max-height:190px;overflow:auto;padding:3px;background:#fff;border:1px solid #e5ded8;border-radius:7px}.directoryList button{display:flex;align-items:center;gap:7px;width:100%;padding:8px;border:0;border-radius:6px;background:transparent;color:#403a35;text-align:left;font-size:12px}.directoryList button:hover,.directoryList button[aria-selected=true]{background:#f1edeb}.directoryList button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.directoryState{display:grid;place-items:center;min-height:90px;color:#948a82;font-size:11px}.directorySelect{justify-self:end;padding:7px 10px;border:1px solid #ded7d1;border-radius:7px;background:#fff;color:#4c4540;font-size:11px}.directorySelect:disabled{opacity:.45}
 .projectEmpty{padding:5px 8px 7px 36px;color:#8c8c8c;font-size:10px}
+.sessionMenu{position:absolute;z-index:15;top:calc(100% + 2px);right:0;min-width:200px;padding:5px;background:#14151f;border:1px solid #22232e;border-radius:10px;box-shadow:0 10px 28px #0008}
+.sessionMenu>button{display:flex;align-items:center;gap:8px;width:100%;padding:8px 10px;border:0;border-radius:6px;background:transparent;color:#c0c0d8;text-align:left;font-size:12px}
+.sessionMenu>button:hover{background:#1e1f2e;color:#eaeaf2}
+.sessionMenu hr{border:0;border-top:1px solid #22232e;margin:4px 2px}
+.sessionMenuHeader{padding:8px 10px 5px;color:#555572;font-size:10px;font-weight:500;white-space:nowrap}
 .mobileLayout [data-project-heading]>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mobileLayout [data-project-heading]>button{display:grid;place-items:center;width:25px;height:25px;margin-left:auto;border:0;border-radius:5px;background:transparent;color:#8c8c8c;opacity:0}
 .mobileLayout [data-project-heading]:hover>button,.mobileLayout [data-project-heading]>button:focus-visible{opacity:1;background:#1b1b1b;color:#f5f5f5}

@@ -52,10 +52,17 @@ export async function POST(request: Request) {
   const action = String(body?.action || "");
   const requestedKey = typeof body?.sessionKey === "string" ? body.sessionKey : "";
   const key = requestedKey && safeKey.test(requestedKey) ? requestedKey : "";
-  if (!key || !["archive", "pin"].includes(action)) return NextResponse.json({ error: "지원하지 않는 세션 작업입니다." }, { status: 400 });
+  if (!key || !["archive", "pin", "rename"].includes(action)) return NextResponse.json({ error: "지원하지 않는 세션 작업입니다." }, { status: 400 });
   const agentId = safeKey.exec(key)?.[1];
   const found = dbs().find(({ agentId: id }) => id === agentId);
   if (!found) return NextResponse.json({ error: "세션을 찾을 수 없습니다." }, { status: 404 });
+  if (action === "rename") {
+    const name = typeof (body as { name?: unknown })?.name === "string" ? (body as { name: string }).name.trim() : "";
+    if (!name) return NextResponse.json({ error: "이름을 입력해주세요." }, { status: 400 });
+    const result = spawnSync("sqlite3", [found.path, `update session_nodes set display_name=${sqlText(name)} where session_key=${sqlText(key)}`], { encoding: "utf8" });
+    if (result.status !== 0) return NextResponse.json({ error: "세션을 변경하지 못했습니다." }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
   const column = action === "archive" ? "archived_at" : "pinned_at";
   const value = action === "archive" || body?.pinned !== false ? Date.now() : "NULL";
   const result = spawnSync("sqlite3", [found.path, `update session_nodes set ${column}=${value} where session_key=${sqlText(key)}`], { encoding: "utf8" });
