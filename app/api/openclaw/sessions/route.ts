@@ -9,7 +9,7 @@ const home = process.env.HOME || "/Users/junzzang";
 const openclawHome = join(home, ".openclaw");
 const safeKey = /^agent:([a-z0-9_-]+):[a-z0-9:_-]+$/i;
 
-type Row = { session_key: string; current_session_id: string; project_id?: string; display_name?: string; label?: string; status?: string; updated_at?: number; last_activity_at?: number };
+type Row = { session_key: string; current_session_id: string; project_id?: string; display_name?: string; label?: string; status?: string; updated_at?: number; last_activity_at?: number; pinned_at?: number | null };
 
 function dbs() {
   try {
@@ -30,14 +30,18 @@ function sqlText(value: string) { return `'${value.replaceAll("'", "''")}'`; }
 export async function GET(request: Request) {
   const key = new URL(request.url).searchParams.get("sessionKey") || "";
   if (key) return history(key);
-  const sessions = dbs().flatMap(({ agentId, path }) => query<Row>(path, "select session_key,current_session_id,project_id,display_name,label,status,updated_at,last_activity_at from session_nodes where archived_at is null order by coalesce(last_activity_at,updated_at) desc limit 200").map((row) => ({
+  const projects = await (await import("../projects/route")).GET();
+  const projectList = ((await projects.json()) as { projects: { id: string; sessionKeys: string[] }[] }).projects;
+  const sessionProjects = new Map(projectList.flatMap((project) => project.sessionKeys.map((key) => [key, project.id] as const)));
+  const sessions = dbs().flatMap(({ agentId, path }) => query<Row>(path, "select n.session_key,n.current_session_id,n.project_id,n.display_name,n.label,n.status,n.updated_at,n.last_activity_at,n.pinned_at from session_nodes n where n.archived_at is null and exists (select 1 from transcript_events e where e.session_id=n.current_session_id and json_extract(e.event_json,'$.message.role') in ('user','assistant') and (length(json_extract(e.event_json,'$.message.content'))>0 or (json_type(e.event_json,'$.message.content')='array' and json_array_length(e.event_json,'$.message.content')>0))) order by coalesce(n.last_activity_at,n.updated_at) desc limit 200").map((row) => ({
     key: row.session_key,
     agentId,
-    projectId: row.project_id || null,
+    projectId: sessionProjects.get(row.session_key) || row.project_id || null,
     displayName: row.display_name || row.label || row.session_key,
     updatedAt: row.last_activity_at || row.updated_at || null,
     status: row.status || "idle",
     hasActiveRun: row.status === "running" || row.status === "active",
+    pinned: Boolean(row.pinned_at),
   })));
   sessions.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
   return NextResponse.json({ sessions });

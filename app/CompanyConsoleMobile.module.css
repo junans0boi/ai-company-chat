@@ -1,0 +1,29 @@
+.mobileSidebarOpen [data-mobile-sidebar]{display:flex;position:fixed;z-index:21;top:0;bottom:63px;left:0;width:min(330px,calc(100vw - 48px));overflow-y:auto;padding:16px 12px;gap:18px;transform:translateX(0);transition:transform .2s ease;box-shadow:12px 0 32px #0005}
+.sidebarBackdrop{display:block;position:fixed;z-index:20;inset:0 0 63px;border:0;background:#0009}
+.connected{background:#c8ff00!important;box-shadow:0 0 12px #c8ff00!important}
+.disconnected{background:#e05252!important;box-shadow:0 0 8px #e05252!important}
+.projectDialogBackdrop{position:fixed;inset:0;z-index:30;display:grid;place-items:center;padding:16px;background:#0008}
+.projectDialog{width:min(480px,100%);padding:22px;border:1px solid #e9e2dd;border-radius:15px;background:#fff;color:#302c29;box-shadow:0 22px 70px #0005}
+.projectDialog header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:22px}
+.projectDialog header small{color:#8e8178;font-size:10px;letter-spacing:.12em}
+.projectDialog h2{margin:5px 0 0;font-size:20px}
+.projectDialog header button{display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:8px;background:transparent;color:#655c55}
+.projectDialog>label{display:grid;gap:8px;margin:16px 0;font-size:12px;font-weight:600}
+.projectDialog>label small{color:#8e8178;font-weight:400}
+.projectDialog input{width:100%;min-width:0;padding:11px 12px;border:1px solid #ded7d1;border-radius:8px;background:#fff;color:#302c29;font:inherit}
+.directoryHint{color:#81776f;font-size:11px;font-weight:400;line-height:1.5}
+.projectDialog footer{display:flex;justify-content:flex-end;gap:8px;margin-top:22px}
+.projectDialog footer button{padding:9px 14px;border:1px solid #ded7d1;border-radius:8px;background:#fff;color:#4c4540;font:inherit}
+.projectDialog footer button[type=submit]{border-color:#cb5e4c;background:#cb5e4c;color:#fff;font-weight:600}
+.projectMenu{position:absolute;z-index:12;top:30px;right:0;width:205px;padding:6px;background:#fff;color:#332f2b;border:1px solid #e8e1dc;border-radius:12px;box-shadow:0 12px 28px #0003}
+.projectMenu>button{display:flex;align-items:center;gap:9px;width:100%;padding:9px 10px;border:0;border-radius:7px;background:transparent;color:inherit;text-align:left;font-size:12px}
+.projectMenu>button:hover,.projectSubmenu button:hover{background:#f1edeb}
+.projectMenu>button span{margin-left:auto}
+.projectMenu hr{border:0;border-top:1px solid #eee8e4;margin:5px 2px}
+.projectSubmenu{padding:2px 0 4px 20px}
+.projectSubmenu button{width:100%;padding:8px;border:0;border-radius:6px;background:transparent;text-align:left;font-size:11px;color:#554e48}
+.projectEmpty{padding:5px 8px 7px 36px;color:#8c8c8c;font-size:10px}
+.mobileLayout [data-project-heading]>span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mobileLayout [data-project-heading]>button{display:grid;place-items:center;width:25px;height:25px;margin-left:auto;border:0;border-radius:5px;background:transparent;color:#8c8c8c;opacity:0}
+.mobileLayout [data-project-heading]:hover>button,.mobileLayout [data-project-heading]>button:focus-visible{opacity:1;background:#1b1b1b;color:#f5f5f5}
+@media(max-width:640px){.mobileSidebarOpen [data-mobile-sidebar]{width:min(330px,calc(100vw - 48px));}.mobileLayout [data-project-heading]>button{opacity:1}.mobileLayout .projectMenu{right:4px}.mobileLayout .projectDialog{max-height:calc(100dvh - 32px);overflow:auto;padding:18px}.mobileLayout [data-topbar]{gap:8px}.mobileLayout [data-topbar-left]{min-width:0}.mobileLayout [data-crumb]{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.mobileLayout [data-top-actions]{flex-shrink:0}.mobileLayout [data-conversation]{width:100%;min-width:0;padding:20px 12px 16px}.mobileLayout [data-composer]{min-width:0;padding:10px}.mobileLayout [data-composer-controls]{min-width:0;flex-wrap:nowrap}.mobileLayout [data-composer-controls] [data-attach]{flex:0 0 28px}.mobileLayout [data-composer-controls] [data-send]{flex:0 0 38px;justify-content:center;padding:8px}.mobileLayout [data-session-head]{gap:8px}.mobileLayout [data-session-head] h1,.mobileLayout [data-message-body]{overflow-wrap:anywhere}.mobileLayout [data-toast]{right:12px;bottom:75px;max-width:calc(100vw - 24px)}.mobileLayout .sessionRow .sessionHoverActions{opacity:1}}
