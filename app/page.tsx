@@ -1,10 +1,9 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, CircleDot, FileText, FolderOpen, GitBranch, Paperclip, Plus, Search, Send, Settings, Sparkles } from "lucide-react";
+import { ChevronDown, CircleDot, FileText, FolderOpen, GitBranch, PanelLeftClose, PanelLeftOpen, Paperclip, Plus, Search, Send, Settings, Sparkles } from "lucide-react";
 import styles from "./CompanyConsole.module.css";
 import liveStyles from "./LiveConsole.module.css";
-import { QUESTIONS, RESULTS } from "./company/quiz/questions";
 
 const pipeline = ["ceo", "architect", "developer", "reviewer"] as const;
 type GatewayAgent = { id?: string; name?: string; model?: { primary?: string } };
@@ -17,7 +16,7 @@ export default function CompanyPage() {
   const sessionKeyRef = useRef("agent:ceo:company-survival-test");
   const refreshSessionsRef = useRef<() => void>(() => undefined);
   const [connected, setConnected] = useState(false);
-  const [approved, setApproved] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [sessionKey, setSessionKey] = useState(sessionKeyRef.current);
@@ -50,12 +49,6 @@ export default function CompanyPage() {
     setSessionKey(key);
     void loadHistory(key).then(setMessages).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "대화를 불러오지 못했습니다."));
   };
-  const approve = () => {
-    void fetch("/api/company/approve", { method: "POST" }).then(async (response) => {
-      if (!response.ok) return setError((await response.json().catch(() => null))?.error || "팀 가동에 실패했습니다.");
-      setApproved(true); notify("승인 완료 · CEO 작업 재개 지시 전송"); refreshSessionsRef.current();
-    });
-  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const text = message.trim();
@@ -65,9 +58,9 @@ export default function CompanyPage() {
     setMessage("");
   };
 
-  return <div className={styles.app}>
+  return <div className={`${styles.app} ${sidebarOpen ? "" : styles.appSidebarCollapsed}`}>
     <aside className={styles.sidebar}>
-      <div className={styles.brand}><span className={styles.brandMark}><Sparkles size={14} /></span>AI Company</div>
+      <div className={styles.brand}><span className={styles.brandMark}><Sparkles size={14} /></span><span className={styles.brandText}>AI Company</span></div>
       <button className={styles.newChat} onClick={() => { const key = `agent:${selectedAgent}:web:${crypto.randomUUID()}`; openSession(key); setMessages([]); }}><Plus size={14} />New chat</button>
       <label className={styles.search}><Search size={13} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search chats" /></label>
       <button className={styles.workspace} onClick={() => setSettingsOpen(true)}><span><small>WORKSPACE</small><br />/backup/workspace/ai-company-chat</span><ChevronDown size={15} /></button>
@@ -77,12 +70,11 @@ export default function CompanyPage() {
       <div className={styles.profile}><span className={styles.avatar}>J</span><span><strong>junzzang</strong><br /><small>M1 local gateway</small></span></div>
     </aside>
     <main className={styles.main}>
-      <header className={styles.topbar}><div className={styles.crumb}><strong>AI Company</strong><span>/</span>{sessionTitle(sessionKey)}</div><div className={styles.topActions}><span className={styles.connection}><i />{connected ? "OpenClaw online" : "OpenClaw offline"}</span><button className={styles.iconButton} aria-label="설정" onClick={() => setSettingsOpen(true)}><Settings size={15} /></button></div></header>
+      <header className={styles.topbar}><div className={styles.topbarLeft}><button className={styles.iconButton} aria-label={sidebarOpen ? "사이드바 접기" : "사이드바 펼치기"} onClick={() => setSidebarOpen((open) => !open)}>{sidebarOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}</button><div className={styles.crumb}><strong>AI Company</strong><span>/</span>{sessionTitle(sessionKey)}</div></div><div className={styles.topActions}><span className={styles.connection}><i />{connected ? "OpenClaw online" : "OpenClaw offline"}</span><button className={styles.iconButton} aria-label="설정" onClick={() => setSettingsOpen(true)}><Settings size={15} /></button></div></header>
       <section className={styles.conversation}>
-        <div className={styles.sessionHead}><div><div className={styles.kicker}>{sessionKey.split(":")[1]?.toUpperCase() || "OPENCLAW"} SESSION</div><h1>{sessionTitle(sessionKey)}</h1><p>{connected ? `${gatewayAgents.length} agents · ${sessions.length} sessions` : "OpenClaw 연결 대기 중"}</p></div><span className={approved ? styles.runChipActive : styles.runChip}>{approved ? "Running" : "Ready"}</span></div>
+        <div className={styles.sessionHead}><div><div className={styles.kicker}>{sessionKey.split(":")[1]?.toUpperCase() || "OPENCLAW"} SESSION</div><h1>{sessionTitle(sessionKey)}</h1><p>{connected ? `${gatewayAgents.length} agents · ${sessions.length} sessions` : "OpenClaw 연결 대기 중"}</p></div><span className={styles.runChip}>Ready</span></div>
         {messages.length === 0 && connected && <Message initial="C" name="CEO" time="now">Gateway에 연결되었습니다. 아래 입력창에서 실제 CEO 에이전트에게 요구사항을 보내세요.</Message>}
         {messages.map((item) => <Message key={item.id} initial={item.role === "user" ? "J" : "C"} name={item.name} time="live" user={item.role === "user"}>{item.text}</Message>)}
-        {connected && <Message initial="C" name="CEO" time="live">CEO 승인 후 Architect가 구조를 잡고 Developer가 구현한 뒤 Reviewer가 검증합니다.<div className={styles.brief}><div className={styles.briefHead}><strong>Approval brief</strong><span>company-brain</span></div><div className={styles.briefGrid}><BriefCell label="GOAL">30초 안에 끝나는 회사 생존 유형 테스트</BriefCell><BriefCell label="DELIVERABLE">모바일 랜딩 · {QUESTIONS.length}문항 · {Object.keys(RESULTS).length}개 결과 · 공유</BriefCell><BriefCell label="OUT OF SCOPE">로그인, DB, 광고, 관리자 통계</BriefCell><BriefCell label="HANDOFF">Architect → Developer → Reviewer</BriefCell></div><div className={styles.briefFooter}><button className={styles.secondary} onClick={() => notify("수정 요청을 CEO 세션에 전달하려면 메시지를 보내세요.")}>수정 요청</button><button className={styles.approve} onClick={approve} disabled={approved}>{approved ? <><Check size={14} /> Approved</> : "승인하고 진행"}</button></div></div></Message>}
         {error && <div className={styles.toast} role="alert">{error}</div>}
         <form className={styles.composer} onSubmit={submit}><textarea value={message} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(event as unknown as FormEvent); } }} placeholder={connected ? "CEO에게 다음 작업을 요청하세요…" : "Gateway 연결을 기다리는 중…"} rows={2} disabled={!connected} /><div className={styles.composerFooter}><span>Enter to send · Shift + Enter for new line</span><div><button type="button" className={styles.attach} aria-label="첨부"><Paperclip size={14} /></button><button className={styles.send} disabled={!connected || !message.trim()}>Send <Send size={13} /></button></div></div></form>
       </section>
@@ -106,7 +98,6 @@ function extractText(value: unknown): string { if (typeof value === "string") re
 function NavSection({ label, children }: { label: string; children: React.ReactNode }) { return <section><div className={styles.navLabel}>{label}</div><div className={styles.navList}>{children}</div></section>; }
 function NavItem({ children, active = false, href, onClick }: { children: React.ReactNode; active?: boolean; href?: string; onClick?: () => void }) { return href ? <a href={href} className={`${styles.navItem} ${active ? styles.navItemActive : ""}`}>{children}</a> : <button className={`${styles.navItem} ${active ? styles.navItemActive : ""}`} onClick={onClick}>{children}</button>; }
 function Message({ initial, name, time, user = false, children }: { initial: string; name: string; time: string; user?: boolean; children: React.ReactNode }) { return <article className={`${styles.message} ${user ? styles.messageUser : ""}`}><div className={styles.messageAvatar}>{initial}</div><div><div className={styles.messageName}>{name}<span>{time}</span></div><div className={styles.messageBody}>{children}</div></div></article>; }
-function BriefCell({ label, children }: { label: string; children: React.ReactNode }) { return <div className={styles.briefCell}><label>{label}</label><p>{children}</p></div>; }
 function Panel({ title, children }: { title: string; children: React.ReactNode }) { return <section className={styles.panel}><div className={styles.panelTitle}>{title}</div>{children}</section>; }
 function AgentRow({ id, agent, sessions }: { id: string; agent?: GatewayAgent; sessions: GatewaySession[] }) { const latest = sessions.find((item) => item.agentId === id); const running = sessions.some((item) => item.agentId === id && item.hasActiveRun); const status = running ? "Running" : latest?.status === "failed" ? "Needs attention" : latest ? "Ready" : "No session"; return <div className={styles.agent}><span className={styles.agentIcon}>{initialOf(id)}</span><div><div>{agent?.name || id}</div><small>{status} · {agent?.model?.primary || "configured"}</small></div><span className={running ? styles.statusWorking : latest?.status === "failed" ? liveStyles.statusFailed : styles.status} /></div>; }
 function Timeline({ sessions }: { sessions: GatewaySession[] }) { const recent = sessions.slice(0, 3); return <div className={styles.timeline}>{recent.map((item) => <div className={`${styles.event} ${item.hasActiveRun ? styles.eventWorking : styles.eventDone}`} key={item.key}><i /><span>{item.displayName || item.agentId || "Session"}<small>{item.hasActiveRun ? "running" : item.status || "updated"}</small></span></div>)}{recent.length === 0 && <div className={liveStyles.emptyState}>활동 기록 없음</div>}</div>; }
