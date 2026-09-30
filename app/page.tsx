@@ -35,7 +35,7 @@ export default function CompanyPage() {
       if (socket.readyState === WebSocket.OPEN) send(socket, `sessions-${newId()}`, "sessions.list", { limit: 40, includeLastMessage: true, configuredAgentsOnly: true, sortBy: "activity" });
     };
     refreshSessionsRef.current = requestSessions;
-    socket.onopen = () => socket.send(JSON.stringify({ type: "req", id: "connect", method: "connect", params: { minProtocol: 3, maxProtocol: 4, client: { id: "openclaw-control-ui", version: "ai-company-chat", mode: "webchat", platform: "web" }, role: "operator", scopes: ["operator.read"] } }));
+    socket.onopen = () => socket.send(JSON.stringify({ type: "req", id: "connect", method: "connect", params: { minProtocol: 3, maxProtocol: 4, client: { id: "openclaw-control-ui", version: "ai-company-chat", mode: "webchat", platform: "web" }, role: "operator", scopes: ["operator.read", "operator.write", "operator.admin", "operator.approvals", "operator.pairing"] } }));
     socket.onmessage = (event) => {
       const frame = JSON.parse(String(event.data));
       if (frame.type === "event" && frame.event === "connect.challenge") return;
