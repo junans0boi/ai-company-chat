@@ -25,6 +25,7 @@ export default function CompanyPage() {
   const [sessionsLoading, setSessionsLoading] = useState(true);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [artifactView, setArtifactView] = useState<{ path: string; content: string } | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
 
@@ -82,6 +83,11 @@ export default function CompanyPage() {
   }, []);
 
   const notify = (text: string) => { setToast(text); window.setTimeout(() => setToast(""), 2200); };
+  const openSession = (key: string) => {
+    sessionKeyRef.current = key;
+    setSessionKey(key);
+    if (socketRef.current?.readyState === WebSocket.OPEN) send(socketRef.current, "history", "chat.history", { sessionKey: key, limit: 80 });
+  };
   const approve = () => {
     void fetch("/api/company/approve", { method: "POST" }).then(async (response) => {
       if (!response.ok) return setError((await response.json().catch(() => null))?.error || "팀 가동에 실패했습니다.");
@@ -100,14 +106,14 @@ export default function CompanyPage() {
   return <div className={styles.app}>
     <aside className={styles.sidebar}>
       <div className={styles.brand}><span className={styles.brandMark}><Sparkles size={14} /></span>AI Company</div>
-      <button className={styles.workspace}><span><small>WORKSPACE</small><br />/backup/workspace/ai-company-chat</span><ChevronDown size={15} /></button>
-      <NavSection label="Projects"><NavItem active href="/company/quiz"><span className={styles.projectDot} />오늘의 회사 생존 테스트</NavItem><NavItem active={connected}><span className={styles.projectDotMuted} />AI Company Console</NavItem><NavItem><span className={styles.projectDotMuted} />Claw3D</NavItem></NavSection>
-      <NavSection label="Recent sessions">{sessions.filter((item) => !item.isBackground).slice(0, 5).map((item) => <NavItem key={item.key}>{item.derivedTitle || item.displayName || item.key || "이름 없는 세션"}</NavItem>)}{!sessionsLoading && sessions.filter((item) => !item.isBackground).length === 0 && <div className={liveStyles.emptyState}>최근 세션 없음</div>}</NavSection>
-      <NavSection label="Agents">{gatewayAgents.map((agent) => <NavItem key={agent.id}><span className={styles.agentGlyph}>{initialOf(agent.id || agent.name || "?")}</span>{agent.name || agent.id}</NavItem>)}{!sessionsLoading && gatewayAgents.length === 0 && <div className={liveStyles.emptyState}>Gateway 에이전트 없음</div>}</NavSection>
+      <button className={styles.workspace} onClick={() => setSettingsOpen(true)}><span><small>WORKSPACE</small><br />/backup/workspace/ai-company-chat</span><ChevronDown size={15} /></button>
+      <NavSection label="Projects"><NavItem active href="/company/quiz"><span className={styles.projectDot} />오늘의 회사 생존 테스트</NavItem><NavItem active={connected} href="/"><span className={styles.projectDotMuted} />AI Company Console</NavItem><NavItem href="https://github.com/junans0boi/claw3d-company-console"><span className={styles.projectDotMuted} />Claw3D</NavItem></NavSection>
+      <NavSection label="Recent sessions">{sessions.filter((item) => !item.isBackground).slice(0, 5).map((item) => <NavItem key={item.key} onClick={() => item.key && openSession(item.key)}>{item.derivedTitle || item.displayName || item.key || "이름 없는 세션"}</NavItem>)}{!sessionsLoading && sessions.filter((item) => !item.isBackground).length === 0 && <div className={liveStyles.emptyState}>최근 세션 없음</div>}</NavSection>
+      <NavSection label="Agents">{gatewayAgents.map((agent) => <NavItem key={agent.id} onClick={() => agent.id && openSession(`agent:${agent.id}:company-survival-test`)}><span className={styles.agentGlyph}>{initialOf(agent.id || agent.name || "?")}</span>{agent.name || agent.id}</NavItem>)}{!sessionsLoading && gatewayAgents.length === 0 && <div className={liveStyles.emptyState}>Gateway 에이전트 없음</div>}</NavSection>
       <div className={styles.profile}><span className={styles.avatar}>J</span><span><strong>junzzang</strong><br /><small>M1 local gateway</small></span></div>
     </aside>
     <main className={styles.main}>
-      <header className={styles.topbar}><div className={styles.crumb}><strong>AI Company</strong><span>/</span>오늘의 회사 생존 테스트</div><div className={styles.topActions}><span className={styles.connection}><i />{connected ? "Gateway online" : "Gateway offline"}</span><button className={styles.iconButton} aria-label="설정"><Settings size={15} /></button></div></header>
+      <header className={styles.topbar}><div className={styles.crumb}><strong>AI Company</strong><span>/</span>오늘의 회사 생존 테스트</div><div className={styles.topActions}><span className={styles.connection}><i />{connected ? "Gateway online" : "Gateway offline"}</span><button className={styles.iconButton} aria-label="설정" onClick={() => setSettingsOpen(true)}><Settings size={15} /></button></div></header>
       <section className={styles.conversation}>
         <div className={styles.sessionHead}><div><div className={styles.kicker}>CEO SESSION</div><h1>오늘의 회사 생존 테스트</h1><p>{connected ? `${gatewayAgents.length} agents · ${sessions.length} live sessions` : "Gateway 연결 대기 중"}</p></div><span className={approved ? styles.runChipActive : styles.runChip}>{approved ? "Running" : "Awaiting approval"}</span></div>
         {messages.length === 0 && connected && <Message initial="C" name="CEO" time="now">Gateway에 연결되었습니다. 아래 입력창에서 실제 CEO 에이전트에게 요구사항을 보내세요.</Message>}
@@ -118,8 +124,9 @@ export default function CompanyPage() {
       </section>
     </main>
     <aside className={styles.inspector}><h2>Run overview</h2><Panel title="Agent pipeline">{pipeline.map((id) => <AgentRow key={id} id={id} agent={gatewayAgents.find((item) => item.id === id)} sessions={sessions} />)}</Panel><Panel title="Activity"><Timeline sessions={sessions} /></Panel><Panel title="Artifacts">{artifacts.map((artifact) => <button className={styles.report} key={artifact.path} onClick={() => void openArtifact(artifact.path)}><FileText size={13} />{artifact.path}</button>)}{artifacts.length === 0 && <div className={liveStyles.emptyState}>파일 없음</div>}</Panel></aside>
-    <nav className={styles.mobileNav}><button className={styles.mobileActive}><CircleDot size={17} />Chat</button><button><GitBranch size={17} />Run</button><button><FolderOpen size={17} />Files</button></nav>
+    <nav className={styles.mobileNav}><button className={styles.mobileActive} onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}><CircleDot size={17} />Chat</button><button onClick={() => notify(`${sessions.filter((item) => item.hasActiveRun).length}개 세션이 실행 중입니다.`)}><GitBranch size={17} />Run</button><button onClick={() => artifacts[0] && void openArtifact(artifacts[0].path)}><FolderOpen size={17} />Files</button></nav>
     {toast && <div className={styles.toast} role="status">{toast}</div>}
+    {settingsOpen && <div className={liveStyles.modalBackdrop} role="presentation" onClick={() => setSettingsOpen(false)}><section className={liveStyles.settingsModal} role="dialog" aria-modal="true" aria-label="Gateway 설정" onClick={(event) => event.stopPropagation()}><header><strong>Live connection</strong><button className={styles.iconButton} onClick={() => setSettingsOpen(false)} aria-label="닫기">×</button></header><dl><dt>Status</dt><dd>{connected ? "Gateway online" : "Gateway offline"}</dd><dt>WebSocket</dt><dd>/api/gateway/ws</dd><dt>Session</dt><dd>{sessionKey}</dd><dt>Repository</dt><dd>/Users/junzzang/backup/workspace/ai-company-chat</dd></dl></section></div>}
     {artifactView && <div className={liveStyles.modalBackdrop} role="presentation" onClick={() => setArtifactView(null)}><section className={liveStyles.artifactModal} role="dialog" aria-modal="true" aria-label={artifactView.path} onClick={(event) => event.stopPropagation()}><header><strong>{artifactView.path}</strong><button className={styles.iconButton} onClick={() => setArtifactView(null)} aria-label="닫기">×</button></header><pre>{artifactView.content}</pre></section></div>}
   </div>;
 
@@ -133,7 +140,7 @@ function displayName(value: string) { return value.replace(/^./, (char) => char.
 function send(socket: WebSocket, id: string, method: string, params: unknown) { socket.send(JSON.stringify({ type: "req", id, method, params })); }
 function extractText(value: unknown): string { if (typeof value === "string") return value; if (Array.isArray(value)) return value.map(extractText).filter(Boolean).join("\n"); if (value && typeof value === "object") { const item = value as Record<string, unknown>; return extractText(item.text ?? item.content ?? item.message ?? item.value); } return ""; }
 function NavSection({ label, children }: { label: string; children: React.ReactNode }) { return <section><div className={styles.navLabel}>{label}</div><div className={styles.navList}>{children}</div></section>; }
-function NavItem({ children, active = false, href }: { children: React.ReactNode; active?: boolean; href?: string }) { return href ? <a href={href} className={`${styles.navItem} ${active ? styles.navItemActive : ""}`}>{children}</a> : <button className={`${styles.navItem} ${active ? styles.navItemActive : ""}`}>{children}</button>; }
+function NavItem({ children, active = false, href, onClick }: { children: React.ReactNode; active?: boolean; href?: string; onClick?: () => void }) { return href ? <a href={href} className={`${styles.navItem} ${active ? styles.navItemActive : ""}`}>{children}</a> : <button className={`${styles.navItem} ${active ? styles.navItemActive : ""}`} onClick={onClick}>{children}</button>; }
 function Message({ initial, name, time, user = false, children }: { initial: string; name: string; time: string; user?: boolean; children: React.ReactNode }) { return <article className={`${styles.message} ${user ? styles.messageUser : ""}`}><div className={styles.messageAvatar}>{initial}</div><div><div className={styles.messageName}>{name}<span>{time}</span></div><div className={styles.messageBody}>{children}</div></div></article>; }
 function BriefCell({ label, children }: { label: string; children: React.ReactNode }) { return <div className={styles.briefCell}><label>{label}</label><p>{children}</p></div>; }
 function Panel({ title, children }: { title: string; children: React.ReactNode }) { return <section className={styles.panel}><div className={styles.panelTitle}>{title}</div>{children}</section>; }
