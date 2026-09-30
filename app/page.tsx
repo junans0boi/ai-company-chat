@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { Archive, Bell, Camera, ChevronDown, CircleDot, FileText, Folder, FolderOpen, GitBranch, Globe, Image, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Paperclip, Pin, Plus, Search, Send, Settings, Sparkles, Upload, Wrench, X } from "lucide-react";
+import { Archive, Bell, Camera, ChevronDown, CircleDot, FileText, Folder, FolderOpen, GitBranch, Globe, Image, Moon, MoreHorizontal, PanelLeftClose, PanelLeftOpen, Paperclip, Pin, Plus, Search, Send, Settings, Sparkles, Sun, Upload, Wrench, X } from "lucide-react";
 import styles from "./CompanyConsole.module.css";
 import mobileStyles from "./CompanyConsoleMobile.module.css";
 import liveStyles from "./LiveConsole.module.css";
@@ -29,6 +29,7 @@ export default function CompanyPage() {
   const modelRequestRef = useRef(0);
   const refreshSessionsRef = useRef<() => void>(() => undefined);
   const [connected, setConnected] = useState(false);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [sidebarWidth, setSidebarWidth] = useState(250);
   const [message, setMessage] = useState("");
@@ -73,6 +74,12 @@ export default function CompanyPage() {
   const [sortPinned, setSortPinned] = useState(false);
   const [activeProjectId, setActiveProjectId] = useState("");
   const directoryDialogKey = projectDialog ? projectDialog.id || "new" : "";
+  useEffect(() => {
+    const saved = localStorage.getItem("ai-company-chat.theme");
+    const preferred = saved === "light" || saved === "dark" ? saved : matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    if (preferred === "light") window.setTimeout(() => setTheme("light"), 0);
+  }, []);
+  const toggleTheme = () => setTheme((current) => { const next = current === "dark" ? "light" : "dark"; localStorage.setItem("ai-company-chat.theme", next); return next; });
   const openSession = useCallback((key: string) => {
     if (!key) return;
     const request = ++historyRequestRef.current;
@@ -215,7 +222,7 @@ export default function CompanyPage() {
     if (!projectDialog.id && body.projects?.[0]) { createDraft(); setActiveProjectId(body.projects[0].id); }
   };
 
-  return <div className={`${styles.app} ${mobileStyles.mobileLayout} ${sidebarOpen ? "" : styles.appSidebarCollapsed} ${mobileMenuOpen ? mobileStyles.mobileSidebarOpen : ""}`} style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}>
+  return <div className={`${styles.app} ${mobileStyles.mobileLayout} ${theme === "light" ? styles.themeLight : ""} ${sidebarOpen ? "" : styles.appSidebarCollapsed} ${mobileMenuOpen ? mobileStyles.mobileSidebarOpen : ""}`} style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}>
     <aside className={styles.sidebar} data-mobile-sidebar>
       <div className={styles.brand}><span className={styles.brandMark}><Sparkles size={14} /></span><span className={styles.brandText}>AI Company</span><span className={styles.sidebarActions}><button aria-label="알림" onClick={() => notify("새 알림이 없습니다.")}><Bell size={14} /></button><button aria-label="검색" onClick={() => document.querySelector<HTMLInputElement>('[placeholder="Search chats"]')?.focus()}><Search size={14} /></button></span></div>
       <button className={styles.newChat} onClick={createDraft}><Plus size={14} />New chat</button>
@@ -228,7 +235,7 @@ export default function CompanyPage() {
       <div className={styles.profile}><span className={styles.avatar}>J</span><span><strong>junzzang</strong><br /><small>M1 local gateway</small></span></div>
     </aside>{mobileMenuOpen && <button className={mobileStyles.sidebarBackdrop} aria-label="사이드바 닫기" onClick={() => setMobileMenuOpen(false)} />}<div className={styles.sidebarResizeHandle} role="separator" aria-label="사이드바 너비 조절" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (event.buttons === 1 && sidebarOpen) setSidebarWidth(Math.max(200, Math.min(420, event.clientX))); }} />
     <main className={styles.main}>
-      <header className={styles.topbar} data-topbar><div className={styles.topbarLeft} data-topbar-left><button className={styles.iconButton} aria-label="사이드바" onClick={() => { if (matchMedia("(max-width: 640px)").matches) setMobileMenuOpen((open) => !open); else setSidebarOpen((open) => !open); }}>{mobileMenuOpen ? <X size={15} /> : sidebarOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}</button><div className={styles.crumb} data-crumb><strong>AI Company</strong><span>/</span>{sessionTitle(sessionKey)}</div></div><div className={styles.topActions} data-top-actions><span className={styles.connection}><i className={connected ? mobileStyles.connected : mobileStyles.disconnected} />{connected ? "OpenClaw online" : "OpenClaw offline"}</span><button className={styles.iconButton} aria-label="설정" onClick={() => setSettingsOpen(true)}><Settings size={15} /></button></div></header>
+      <header className={styles.topbar} data-topbar><div className={styles.topbarLeft} data-topbar-left><button className={styles.iconButton} aria-label="사이드바" onClick={() => { if (matchMedia("(max-width: 640px)").matches) setMobileMenuOpen((open) => !open); else setSidebarOpen((open) => !open); }}>{mobileMenuOpen ? <X size={15} /> : sidebarOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}</button><div className={styles.crumb} data-crumb><strong>AI Company</strong><span>/</span>{sessionTitle(sessionKey)}</div></div><div className={styles.topActions} data-top-actions><span className={styles.connection}><i className={connected ? mobileStyles.connected : mobileStyles.disconnected} />{connected ? "OpenClaw online" : "OpenClaw offline"}</span><button className={styles.iconButton} aria-label={theme === "light" ? "다크 모드" : "라이트 모드"} title={theme === "light" ? "다크 모드" : "라이트 모드"} onClick={toggleTheme}>{theme === "light" ? <Moon size={15} /> : <Sun size={15} />}</button><button className={styles.iconButton} aria-label="설정" onClick={() => setSettingsOpen(true)}><Settings size={15} /></button></div></header>
       <section className={styles.conversation} data-conversation>
         {newChatSetup && messages.length === 0 && <div className={styles.newChatSetup}><label>프로젝트<select value={activeProjectId} onChange={(event) => setActiveProjectId(event.target.value)}><option value="">프로젝트 없이 시작</option>{projects.filter((project) => project.section !== "보관된 프로젝트").map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label><label>실행 위치<select><option>현재 M1 Gateway</option></select></label><label>설정 디렉터리<input value={projects.find((project) => project.id === activeProjectId)?.directory || workspaceDirectory} readOnly /></label></div>}
         <div className={styles.sessionHead} data-session-head><div><div className={styles.kicker}>{sessionKey.split(":")[1]?.toUpperCase() || "OPENCLAW"} SESSION</div><h1>{sessionTitle(sessionKey)}</h1><p>{connected ? `${gatewayAgents.length} agents · ${sessions.length} sessions` : "OpenClaw 연결 대기 중"}</p></div><span className={styles.runChip}>Ready</span></div>
