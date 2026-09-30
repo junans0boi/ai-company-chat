@@ -76,14 +76,9 @@ export default function CompanyPage() {
     };
     socket.onerror = () => setError("Gateway 연결 오류");
     socket.onclose = () => setConnected(false);
-<<<<<<< HEAD
-    
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-=======
     const interval = window.setInterval(requestSessions, 10_000);
     void loadArtifacts().then(setArtifacts).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "아티팩트를 불러오지 못했습니다."));
     return () => { window.clearInterval(interval); refreshSessionsRef.current = () => undefined; socket.close(); };
->>>>>>> 288d254 (feat: connect console panels to live gateway data)
   }, []);
 
   const notify = (text: string) => { setToast(text); window.setTimeout(() => setToast(""), 2200); };
