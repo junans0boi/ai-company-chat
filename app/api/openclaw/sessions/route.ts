@@ -52,16 +52,21 @@ function history(key: string) {
   if (!node) return NextResponse.json({ messages: [] });
   const events = query<{ event_json: string }>(found.path, `select event_json from transcript_events where session_id=${sqlText(node.current_session_id)} order by seq asc`);
   const usage = { input: 0, output: 0, cost: 0 };
+  let latestUsage: typeof usage | null = null;
   const messages = events.flatMap(({ event_json }) => {
     try {
       const event = JSON.parse(event_json);
       const message = event.message;
       const runUsage = message?.usage;
-      if (runUsage) { usage.input += Number(runUsage.input || 0); usage.output += Number(runUsage.output || 0); usage.cost += Number(runUsage.cost?.total || 0); }
+      if (runUsage) {
+        const current = { input: Number(runUsage.input || 0), output: Number(runUsage.output || 0), cost: Number(runUsage.cost?.total || 0) };
+        usage.input += current.input; usage.output += current.output; usage.cost += current.cost;
+        if (message?.role === "assistant") latestUsage = current;
+      }
       if (message?.role !== "user" && message?.role !== "assistant") return [];
       const content = typeof message.content === "string" ? message.content : Array.isArray(message.content) ? message.content.filter((part: { type?: string }) => part.type === "text").map((part: { text?: string }) => part.text || "").join("\n") : "";
       return content ? [{ role: message.role, content }] : [];
     } catch { return []; }
   });
-  return NextResponse.json({ messages: messages.slice(-80), usage });
+  return NextResponse.json({ messages: messages.slice(-80), usage: latestUsage || usage });
 }
