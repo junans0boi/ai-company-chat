@@ -75,17 +75,19 @@
 .messageUser{display:flex;justify-content:flex-end;grid-template-columns:unset}
 .messageAvatar{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:700;background:var(--panel2);color:var(--accent);flex-shrink:0}
 .messageContent{min-width:0}
-.messageName{font-size:11px;font-weight:600;margin-bottom:7px;color:#9090b0}
-.messageName span{color:#4a4b5c;font-weight:400;margin-left:6px}
 .messageBody{color:#c2c4d4;line-height:1.75;font-size:13.5px}
 .messageBody strong{color:var(--text)}
-.userBubble{position:relative;background:#1c2040;color:#c2c4d4;border-radius:14px 14px 4px 14px;padding:10px 14px;max-width:75%;font-size:13.5px;line-height:1.65;word-break:break-word}
-.bubbleCopy{position:absolute;top:6px;right:6px;display:none;border:none;background:rgba(255,255,255,.08);color:#9090b0;border-radius:4px;padding:2px 5px;font-size:11px;cursor:pointer;line-height:1}
-.userBubble:hover .bubbleCopy{display:block}
-.messageActions{display:none;gap:4px;margin-top:6px}
-.message:hover .messageActions{display:flex}
-.messageActions button{border:none;background:none;color:#6870a0;font-size:11.5px;cursor:pointer;padding:1px 5px;border-radius:4px}
-.messageActions button:hover{background:var(--panel2);color:var(--text)}
+.messageMeta{font-size:11px;color:#6870a0;margin-top:8px}
+.messageFooter{display:flex;align-items:center;gap:6px;margin-top:5px}
+.messageName{font-size:11px;font-weight:600;color:#9090b0}
+.messageTime{font-size:11px;color:#4a4b5c;font-weight:400}
+.messageActions{display:flex;gap:2px;margin-left:2px}
+.messageActions button{border:none;background:none;color:#4a4b5c;cursor:pointer;padding:3px 4px;border-radius:4px;display:grid;place-items:center}
+.messageActions button:hover{background:var(--panel2);color:#9090b0}
+.userBubble{position:relative;background:#1c2040;border-radius:14px 14px 4px 14px;padding:10px 14px 10px 14px;max-width:75%}
+.userBubble .messageBody{color:#c2c4d4;font-size:13.5px;line-height:1.65;word-break:break-word}
+.bubbleCopy{position:absolute;top:6px;right:6px;display:none;border:none;background:rgba(255,255,255,.08);color:#9090b0;border-radius:4px;padding:3px;cursor:pointer;line-height:0}
+.userBubble:hover .bubbleCopy{display:grid;place-items:center}
 .toolCallSummary{font-size:11.5px;color:#6870a0;margin-bottom:8px}
 .toolCallSummary button{background:none;border:none;padding:0;color:#6870a0;font-size:11.5px;cursor:pointer;text-decoration:underline dotted}
 .toolCallDetails{list-style:none;padding:6px 0 0 0;margin:0;display:flex;flex-wrap:wrap;gap:4px}
@@ -97,6 +99,11 @@
 .newChatSetup label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:500;flex:1}
 .newChatSetup select,.toolbarSelect{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:7px;padding:7px 8px;font-size:11px}
 /* ── composer ── */
+.replyBanner{display:flex;align-items:center;gap:8px;padding:7px 10px;margin-bottom:6px;border-radius:8px;background:var(--panel2);font-size:11.5px;color:#9090b0;border-left:2px solid var(--accent)}
+.replyBanner span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.replyBanner b{color:var(--text);margin-right:6px}
+.replyBanner>button{border:none;background:none;color:#6870a0;cursor:pointer;padding:2px;border-radius:3px;display:grid;place-items:center;flex-shrink:0}
+.replyBanner>button:hover{color:var(--text)}
 .composer{border:1px solid var(--line);background:var(--panel);border-radius:12px;margin-top:auto;padding:12px;position:relative}
 .composer textarea{display:block;width:100%;resize:none;border:0;outline:0;background:transparent;color:var(--text);min-height:52px;line-height:1.6;font-size:13px}
 .composer textarea::placeholder{color:#4a4b5c}
@@ -206,10 +213,15 @@
 .app.themeLight .navItem:hover,.app.themeLight .navItemActive{color:var(--text)}
 .app.themeLight .messageBody{color:#3c3e52}
 .app.themeLight .messageAvatar{background:#e8ecf8;color:#476b00}
-.app.themeLight .userBubble{background:#e4eaff;color:#2a2d3e}
-.app.themeLight .messageActions button{color:#7a7aaa}
+.app.themeLight .userBubble{background:#e4eaff}
+.app.themeLight .userBubble .messageBody{color:#2a2d3e}
+.app.themeLight .messageMeta{color:#8888aa}
+.app.themeLight .messageTime{color:#9090b0}
+.app.themeLight .messageActions button{color:#9090b0}
 .app.themeLight .messageActions button:hover{background:#f0f0f8;color:#3c3e52}
 .app.themeLight .bubbleCopy{background:rgba(0,0,0,.06);color:#7a7aaa}
+.app.themeLight .replyBanner{background:#f0f0f8;color:#6060a0}
+.app.themeLight .replyBanner b{color:#3c3e52}
 .app.themeLight .toolCallSummary,.app.themeLight .toolCallSummary button{color:#7a7aaa}
 .app.themeLight .toolCallDetails li{background:#f0f0f8;border-color:#d8d8ee;color:#5a5a80}
 .app.themeLight .commandPalette{background:#fff;box-shadow:0 -12px 30px #1a1c2a18}
