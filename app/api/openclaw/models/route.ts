@@ -54,7 +54,8 @@ export async function GET(request: Request) {
   const current = sessionKey ? sessionUsage(sessionKey) : null;
   const selected = models.find((item: { id: string; name: string }) => item.id === current?.model || item.name === current?.model) || models[0] || null;
   const rawUsage = current?.usage as Record<string, unknown> | null;
-  const usedTokens = Number(rawUsage?.input || rawUsage?.totalTokens || 0);
+  const usageParts = ["input", "output", "cacheRead", "cacheWrite"].reduce((total, key) => total + Number(rawUsage?.[key] || 0), 0);
+  const usedTokens = Number(rawUsage?.totalTokens || usageParts);
   const maxTokens = Number(selected?.contextWindow || 0);
   return NextResponse.json({ models, oauth, selectedModel: current?.model || selected?.id || null, provider: current?.provider || selected?.provider || null, usage: { input: Number(rawUsage?.input || 0), output: Number(rawUsage?.output || 0), cost: Number((rawUsage?.cost as Record<string, unknown> | undefined)?.total || 0) }, context: { usedTokens, maxTokens, remainingTokens: Math.max(0, maxTokens - usedTokens), percent: maxTokens ? Math.min(100, Math.round((usedTokens / maxTokens) * 100)) : 0 } });
 }
