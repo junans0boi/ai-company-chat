@@ -10,6 +10,10 @@ type GatewayAgent = { id?: string; name?: string; model?: { primary?: string } }
 type GatewaySession = { key?: string; displayName?: string; projectId?: string | null; lastMessagePreview?: string; agentId?: string; updatedAt?: number | null; status?: string; hasActiveRun?: boolean };
 type Artifact = { path: string; size: number; updatedAt: number };
 type MessageItem = { id: string; role: "user" | "assistant"; name: string; text: string };
+type Skill = { name: string; source: string; description: string; descriptionKo: string };
+const commands = [
+  ["/stop", "현재 실행 중인 작업 중지"], ["/reset", "현재 세션 초기화"], ["/new", "새 세션 시작"], ["/compact", "세션 컨텍스트 압축"], ["/name", "현재 세션 이름 변경"], ["/clear", "채팅 기록 지우기"], ["/session", "세션 설정과 수명주기 관리"], ["/think", "추론 수준 설정"], ["/model", "모델 확인 또는 변경"], ["/verbose", "빠른 모드 전환"], ["/reasoning", "추론 표시 전환"], ["/models", "사용 가능한 모델 목록"], ["/trace", "플러그인 trace 표시 전환"], ["/elevated", "권한 수준 설정"], ["/exec", "실행 기본값 설정"], ["/queue", "메시지 큐 설정"], ["/help", "사용 가능한 명령어 보기"], ["/status", "현재 상태 보기"], ["/openclaw", "OpenClaw 설정 및 복구 도우미"], ["/export-session", "현재 세션을 HTML로 내보내기"], ["/export-trajectory", "현재 세션 trajectory 내보내기"], ["/tools", "실행 도구 목록"], ["/skill", "스킬 실행"],
+] as const;
 
 export default function CompanyPage() {
   const socketRef = useRef<WebSocket | null>(null);
@@ -17,6 +21,7 @@ export default function CompanyPage() {
   const refreshSessionsRef = useRef<() => void>(() => undefined);
   const [connected, setConnected] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarWidth, setSidebarWidth] = useState(250);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [sessionKey, setSessionKey] = useState(sessionKeyRef.current);
@@ -28,7 +33,7 @@ export default function CompanyPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
-  const [skills, setSkills] = useState<string[]>([]);
+  const [skills, setSkills] = useState<Skill[]>([]);
   const [search, setSearch] = useState("");
   const [selectedAgent, setSelectedAgent] = useState("ceo");
 
@@ -57,8 +62,13 @@ export default function CompanyPage() {
     void fetch("/api/company/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: text, sessionKey }) }).then(async (response) => { if (!response.ok) setError((await response.json().catch(() => null))?.error || "메시지를 전달하지 못했습니다."); window.setTimeout(() => { void loadHistory(sessionKey).then(setMessages); refreshSessionsRef.current(); }, 1200); });
     setMessage("");
   };
+  const slashQuery = message.startsWith("/") ? message.split(/\s/, 1)[0].toLowerCase() : "";
+  const commandMatches = slashQuery ? commands.filter(([name]) => name.startsWith(slashQuery)) : [];
+  const skillPrefix = slashQuery === "/skill" ? "" : slashQuery.slice(1);
+  const skillMatches = slashQuery.startsWith("/") && (slashQuery.length > 1) ? skills.filter((skill) => skill.name.startsWith(skillPrefix) || `/${skill.name}`.startsWith(slashQuery)).slice(0, 8) : [];
+  const selectSlash = (value: string) => setMessage(`${value} `);
 
-  return <div className={`${styles.app} ${sidebarOpen ? "" : styles.appSidebarCollapsed}`}>
+  return <div className={`${styles.app} ${sidebarOpen ? "" : styles.appSidebarCollapsed}`} style={{ "--sidebar-width": `${sidebarWidth}px` } as React.CSSProperties}>
     <aside className={styles.sidebar}>
       <div className={styles.brand}><span className={styles.brandMark}><Sparkles size={14} /></span><span className={styles.brandText}>AI Company</span></div>
       <button className={styles.newChat} onClick={() => { const key = `agent:${selectedAgent}:web:${crypto.randomUUID()}`; openSession(key); setMessages([]); }}><Plus size={14} />New chat</button>
@@ -66,9 +76,9 @@ export default function CompanyPage() {
       <button className={styles.workspace} onClick={() => setSettingsOpen(true)}><span><small>WORKSPACE</small><br />/backup/workspace/ai-company-chat</span><ChevronDown size={15} /></button>
       <NavSection label="Projects"><NavItem active={sessionKey.includes("company-survival-test")} onClick={() => openSession("agent:ceo:company-survival-test")}><span className={styles.projectDot} />오늘의 회사 생존 테스트</NavItem></NavSection>
       <NavSection label="Chats">{sessions.filter((item) => !item.projectId && `${item.displayName} ${item.key}`.toLowerCase().includes(search.toLowerCase())).slice(0, 20).map((item) => <NavItem key={item.key} active={item.key === sessionKey} onClick={() => item.key && openSession(item.key)}>{item.displayName || item.key}</NavItem>)}{!sessionsLoading && sessions.filter((item) => !item.projectId).length === 0 && <div className={liveStyles.emptyState}>대화 없음</div>}</NavSection>
-      <NavSection label="Skills">{skills.slice(0, 8).map((skill) => <NavItem key={skill} onClick={() => setMessage(`/${skill} `)}><span className={styles.agentGlyph}>/</span>{skill}</NavItem>)}</NavSection>
+      <NavSection label="Skills">{skills.slice(0, 8).map((skill) => <NavItem key={skill.name} onClick={() => selectSlash(`/skill ${skill.name}`)}><span className={styles.agentGlyph}>/</span>{skill.name}</NavItem>)}</NavSection>
       <div className={styles.profile}><span className={styles.avatar}>J</span><span><strong>junzzang</strong><br /><small>M1 local gateway</small></span></div>
-    </aside>
+    </aside><div className={styles.sidebarResizeHandle} role="separator" aria-label="사이드바 너비 조절" onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)} onPointerMove={(event) => { if (event.buttons === 1 && sidebarOpen) setSidebarWidth(Math.max(200, Math.min(420, event.clientX))); }} />
     <main className={styles.main}>
       <header className={styles.topbar}><div className={styles.topbarLeft}><button className={styles.iconButton} aria-label={sidebarOpen ? "사이드바 접기" : "사이드바 펼치기"} onClick={() => setSidebarOpen((open) => !open)}>{sidebarOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}</button><div className={styles.crumb}><strong>AI Company</strong><span>/</span>{sessionTitle(sessionKey)}</div></div><div className={styles.topActions}><span className={styles.connection}><i />{connected ? "OpenClaw online" : "OpenClaw offline"}</span><button className={styles.iconButton} aria-label="설정" onClick={() => setSettingsOpen(true)}><Settings size={15} /></button></div></header>
       <section className={styles.conversation}>
@@ -76,7 +86,7 @@ export default function CompanyPage() {
         {messages.length === 0 && connected && <Message initial="C" name="CEO" time="now">Gateway에 연결되었습니다. 아래 입력창에서 실제 CEO 에이전트에게 요구사항을 보내세요.</Message>}
         {messages.map((item) => <Message key={item.id} initial={item.role === "user" ? "J" : "C"} name={item.name} time="live" user={item.role === "user"}>{item.text}</Message>)}
         {error && <div className={styles.toast} role="alert">{error}</div>}
-        <form className={styles.composer} onSubmit={submit}><textarea value={message} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(event as unknown as FormEvent); } }} placeholder={connected ? "CEO에게 다음 작업을 요청하세요…" : "Gateway 연결을 기다리는 중…"} rows={2} disabled={!connected} /><div className={styles.composerFooter}><span>Enter to send · Shift + Enter for new line</span><div><button type="button" className={styles.attach} aria-label="첨부"><Paperclip size={14} /></button><button className={styles.send} disabled={!connected || !message.trim()}>Send <Send size={13} /></button></div></div></form>
+        <form className={styles.composer} onSubmit={submit}>{slashQuery && (commandMatches.length > 0 || skillMatches.length > 0) && <div className={styles.commandPalette}><div className={styles.paletteTitle}>{skillMatches.length > 0 ? "Skills · 스킬" : "Commands · 명령어"}</div>{skillMatches.length > 0 ? skillMatches.map((skill) => <button type="button" className={styles.paletteItem} key={skill.name} onClick={() => selectSlash(`/skill ${skill.name}`)}><strong>/{skill.name}</strong><span>{skill.source} · {skill.descriptionKo}</span><small>{skill.description}</small></button>) : commandMatches.map(([name, description]) => <button type="button" className={styles.paletteItem} key={name} onClick={() => selectSlash(name)}><strong>{name}</strong><span>{description}</span></button>)}</div>}<textarea value={message} onChange={(event) => setMessage(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); submit(event as unknown as FormEvent); } }} placeholder={connected ? "CEO에게 다음 작업을 요청하세요… / 명령어 또는 /skill 입력" : "OpenClaw 연결을 기다리는 중…"} rows={2} disabled={!connected} /><div className={styles.composerFooter}><span>Enter 전송 · Shift + Enter 줄바꿈</span><div><button type="button" className={styles.attach} aria-label="첨부"><Paperclip size={14} /></button><button className={styles.send} disabled={!connected || !message.trim()}>Send <Send size={13} /></button></div></div></form>
       </section>
     </main>
     <aside className={styles.inspector}><h2>Run overview</h2><Panel title="Agent pipeline">{pipeline.map((id) => <AgentRow key={id} id={id} agent={gatewayAgents.find((item) => item.id === id)} sessions={sessions} />)}</Panel><Panel title="Activity"><Timeline sessions={sessions} /></Panel><Panel title="Artifacts">{artifacts.map((artifact) => <button className={styles.report} key={artifact.path} onClick={() => void openArtifact(artifact.path)}><FileText size={13} />{artifact.path}</button>)}{artifacts.length === 0 && <div className={liveStyles.emptyState}>파일 없음</div>}</Panel></aside>
