@@ -43,6 +43,22 @@ export async function GET(request: Request) {
   return NextResponse.json({ sessions });
 }
 
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => null) as { action?: unknown; sessionKey?: unknown; pinned?: unknown } | null;
+  const action = String(body?.action || "");
+  const requestedKey = typeof body?.sessionKey === "string" ? body.sessionKey : "";
+  const key = requestedKey && safeKey.test(requestedKey) ? requestedKey : "";
+  if (!key || !["archive", "pin"].includes(action)) return NextResponse.json({ error: "지원하지 않는 세션 작업입니다." }, { status: 400 });
+  const agentId = safeKey.exec(key)?.[1];
+  const found = dbs().find(({ agentId: id }) => id === agentId);
+  if (!found) return NextResponse.json({ error: "세션을 찾을 수 없습니다." }, { status: 404 });
+  const column = action === "archive" ? "archived_at" : "pinned_at";
+  const value = action === "archive" || body?.pinned !== false ? Date.now() : "NULL";
+  const result = spawnSync("sqlite3", [found.path, `update session_nodes set ${column}=${value} where session_key=${sqlText(key)}`], { encoding: "utf8" });
+  if (result.status !== 0) return NextResponse.json({ error: "세션을 변경하지 못했습니다." }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
 function history(key: string) {
   const match = safeKey.exec(key);
   if (!match) return NextResponse.json({ error: "유효하지 않은 세션입니다." }, { status: 400 });
