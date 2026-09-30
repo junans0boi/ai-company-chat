@@ -72,13 +72,20 @@
 .sessionHead h1{margin:0;font-size:22px;font-weight:600;letter-spacing:-.03em;color:var(--text)}
 /* ── messages ── */
 .message{display:grid;grid-template-columns:28px 1fr;gap:12px;margin:24px 0}
+.messageUser{display:flex;justify-content:flex-end;grid-template-columns:unset}
 .messageAvatar{width:28px;height:28px;border-radius:7px;display:grid;place-items:center;font-size:11px;font-weight:700;background:var(--panel2);color:var(--accent);flex-shrink:0}
-.messageUser .messageAvatar{background:#1c2040;color:#7aa4ff}
 .messageContent{min-width:0}
 .messageName{font-size:11px;font-weight:600;margin-bottom:7px;color:#9090b0}
 .messageName span{color:#4a4b5c;font-weight:400;margin-left:6px}
 .messageBody{color:#c2c4d4;line-height:1.75;font-size:13.5px}
 .messageBody strong{color:var(--text)}
+.userBubble{background:#1c2040;color:#c2c4d4;border-radius:14px 14px 4px 14px;padding:10px 14px;max-width:75%;font-size:13.5px;line-height:1.65;word-break:break-word}
+.toolCallSummary{font-size:11.5px;color:#6870a0;margin-bottom:8px}
+.toolCallSummary button{background:none;border:none;padding:0;color:#6870a0;font-size:11.5px;cursor:pointer;text-decoration:underline dotted}
+.toolCallDetails{list-style:none;padding:6px 0 0 0;margin:0;display:flex;flex-wrap:wrap;gap:4px}
+.toolCallDetails li{font-size:11px;background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:2px 7px;color:#9090b0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.thinkingDots{animation:blink 1.2s ease-in-out infinite}
 /* ── new chat setup ── */
 .newChatSetup{display:flex;gap:8px;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:14px;margin-bottom:20px}
 .newChatSetup label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:500;flex:1}
@@ -193,7 +200,9 @@
 .app.themeLight .navItem:hover,.app.themeLight .navItemActive{color:var(--text)}
 .app.themeLight .messageBody{color:#3c3e52}
 .app.themeLight .messageAvatar{background:#e8ecf8;color:#476b00}
-.app.themeLight .messageUser .messageAvatar{background:#e4eaff;color:#3a5bcc}
+.app.themeLight .userBubble{background:#e4eaff;color:#2a2d3e}
+.app.themeLight .toolCallSummary,.app.themeLight .toolCallSummary button{color:#7a7aaa}
+.app.themeLight .toolCallDetails li{background:#f0f0f8;border-color:#d8d8ee;color:#5a5a80}
 .app.themeLight .commandPalette{background:#fff;box-shadow:0 -12px 30px #1a1c2a18}
 .app.themeLight .paletteItem span{color:#555770}
 .app.themeLight .paletteItem small{color:#8a8ca8}

@@ -9,7 +9,7 @@ import liveStyles from "./LiveConsole.module.css";
 type GatewayAgent = { id?: string; name?: string };
 type GatewaySession = { key?: string; displayName?: string; projectId?: string | null; lastMessagePreview?: string; agentId?: string; updatedAt?: number | null; status?: string; hasActiveRun?: boolean; pinned?: boolean };
 type Project = { id: string; name: string; directory: string; pinned: boolean; section: string; sessionKeys: string[] };
-type MessageItem = { id: string; role: "user" | "assistant"; name: string; text: string };
+type MessageItem = { id: string; role: "user" | "assistant"; name: string; text: string; toolCalls?: { name: string; count: number }[] };
 type Usage = { input: number; output: number; cost: number };
 type ModelOption = { id: string; name: string; provider: string; contextWindow: number; available: boolean; reasoning: boolean; input?: unknown };
 type ContextStats = { usedTokens: number; maxTokens: number; remainingTokens: number; percent: number };
@@ -39,6 +39,7 @@ export default function CompanyPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+  const [isRunning, setIsRunning] = useState(false);
   const [skills, setSkills] = useState<Skill[]>([]);
   const [search, setSearch] = useState("");
   const [selectedAgent, setSelectedAgent] = useState("ceo");
@@ -162,24 +163,50 @@ export default function CompanyPage() {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const text = message.trim();
-    if (!text || !connected) return;
-    setMessages((current) => [...current, { id: newId(), role: "user", name: "You", text }]);
+    if (!text || !connected || isRunning) return;
     const key = sessionKey;
-    const historyVersion = historyRequestRef.current;
+    const agentName = displayName(key.split(":")[1] || "ceo");
+    const streamId = newId();
+    const historyVersion = ++historyRequestRef.current;
+    setMessages((prev) => [...prev, { id: newId(), role: "user", name: "You", text }, { id: streamId, role: "assistant", name: agentName, text: "", toolCalls: [] }]);
+    setIsRunning(true);
     void (async () => {
       if (activeProjectId) await fetch("/api/openclaw/projects", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ action: "linkSession", id: activeProjectId, sessionKey: key }) });
-      const response = await fetch("/api/company/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: text, sessionKey: key, model, thinking: fastMode ? "low" : thinking, attachments }) });
-      if (!response.ok) { setError((await response.json().catch(() => null))?.error || "메시지를 전달하지 못했습니다."); return; }
-      const before = messages.length;
-      for (let attempt = 0; attempt < 90; attempt++) {
-        await new Promise((resolve) => window.setTimeout(resolve, 2000));
-        if (historyVersion !== historyRequestRef.current || key !== sessionKeyRef.current) return;
-        const result = await loadHistory(key);
-        setMessages(result.messages); setUsage(result.usage);
-        if (result.messages.length > before && result.messages.at(-1)?.role === "assistant") break;
+      const response = await fetch("/api/company/stream", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: text, sessionKey: key, model, thinking: fastMode ? "low" : thinking, attachments }) });
+      if (!response.ok || !response.body) { setError("메시지를 전달하지 못했습니다."); setIsRunning(false); return; }
+      const reader = response.body.getReader();
+      const dec = new TextDecoder();
+      let buf = "";
+      const toolCounts = new Map<string, number>();
+      outer: while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (historyVersion !== historyRequestRef.current || key !== sessionKeyRef.current) { reader.cancel(); break; }
+        buf += dec.decode(value, { stream: true });
+        const parts = buf.split("\n\n");
+        buf = parts.pop() || "";
+        for (const part of parts) {
+          const line = part.trim().split("\n").find((l) => l.startsWith("data: "));
+          if (!line) continue;
+          let evt: { type: string; name?: string; count?: number; error?: string };
+          try { evt = JSON.parse(line.slice(6)); } catch { continue; }
+          if (evt.type === "tool_call" && evt.name) {
+            toolCounts.set(evt.name, evt.count ?? 1);
+            const calls = [...toolCounts.entries()].map(([name, count]) => ({ name, count }));
+            setMessages((prev) => prev.map((m) => m.id === streamId ? { ...m, toolCalls: calls } : m));
+          } else if (evt.type === "done") {
+            const result = await loadHistory(key).catch(() => null);
+            if (result && historyVersion === historyRequestRef.current) { setMessages(result.messages); setUsage(result.usage); }
+            break outer;
+          } else if (evt.type === "error") {
+            setError(evt.error || "오류가 발생했습니다.");
+            break outer;
+          }
+        }
       }
+      setIsRunning(false);
       if (historyVersion === historyRequestRef.current) { void refreshModelData(key); void refreshSessionsRef.current(); }
-    })().catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "메시지를 전달하지 못했습니다."));
+    })().catch((reason: unknown) => { setError(reason instanceof Error ? reason.message : "메시지를 전달하지 못했습니다."); setIsRunning(false); });
     setMessage("");
     setAttachments([]);
     setNewChatSetup(false);
@@ -233,7 +260,7 @@ export default function CompanyPage() {
       <section className={styles.conversation} data-conversation>
         {newChatSetup && messages.length === 0 && <div className={styles.newChatSetup}><label>프로젝트<select value={activeProjectId} onChange={(event) => setActiveProjectId(event.target.value)}><option value="">프로젝트 없이 시작</option>{projects.filter((project) => project.section !== "보관된 프로젝트").map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>{activeProjectId && <label>디렉터리<input value={projects.find((project) => project.id === activeProjectId)?.directory || ""} readOnly /></label>}</div>}
         <div className={styles.sessionHead} data-session-head><div><div className={styles.kicker}>{sessionKey.split(":")[1] || "openclaw"}</div><h1>{sessions.find((s) => s.key === sessionKey)?.displayName || sessionTitle(sessionKey)}</h1></div></div>
-        {messages.map((item) => <Message key={item.id} initial={item.role === "user" ? "J" : "C"} name={item.name} time="live" user={item.role === "user"}><MarkdownText text={item.text} /></Message>)}
+        {messages.map((item) => <Message key={item.id} initial={item.role === "user" ? "J" : "C"} name={item.name} time="live" user={item.role === "user"} toolCalls={item.toolCalls}><MarkdownText text={item.text} /></Message>)}
         {error && <div className={styles.toast} role="alert" data-toast>{error}</div>}
         <Composer message={message} setMessage={setMessage} submit={submit} connected={connected} slashQuery={slashQuery} commandMatches={commandMatches} skillMatches={skillMatches} selectSlash={selectSlash} plusOpen={plusOpen} setPlusOpen={setPlusOpen} contextOpen={contextOpen} setContextOpen={setContextOpen} permissionOpen={permissionOpen} setPermissionOpen={setPermissionOpen} modelOpen={modelOpen} setModelOpen={setModelOpen} thinkingOpen={thinkingOpen} setThinkingOpen={setThinkingOpen} permissionMode={permissionMode} setPermissionMode={setPermissionMode} model={model} setModel={setModel} models={models} oauth={oauth} thinking={thinking} setThinking={setThinking} fastMode={fastMode} setFastMode={setFastMode} usage={usage} context={context} attachments={attachments} setAttachments={setAttachments} notify={notify} />
       </section>
@@ -273,7 +300,19 @@ function ProjectGroup({ title, sessions, project, current, pinned, menuOpen, onO
   const [sectionOpen, setSectionOpen] = useState(false);
   return <div className={styles.projectGroup}><div className={styles.projectHeading} data-project-heading><Folder size={14} /><span>{title}{pinned ? " · 고정" : ""}</span>{project && <button aria-label={`${title} 프로젝트 메뉴`} onClick={onMenu}><MoreHorizontal size={15} /></button>}</div>{menuOpen && project && <div className={mobileStyles.projectMenu} data-project-menu role="menu"><button role="menuitem" onClick={() => onAction("pin", project)}><Pin size={14} />{pinned ? "고정 해제" : "고정"}</button><button role="menuitem" onClick={() => onAction("edit", project)}>⚙ 편집</button><button role="menuitem" aria-expanded={sectionOpen} onClick={() => setSectionOpen((open) => !open)}>☷ 섹션 <span>›</span></button>{sectionOpen && <div className={mobileStyles.projectSubmenu}><button onClick={() => onAction("section", project)}>{project.section === "보관된 프로젝트" ? "프로젝트로 이동" : "보관된 프로젝트로 이동"}</button></div>}<button role="menuitem" onClick={() => onAction("reveal", project)}><FolderOpen size={14} />Finder에서 보기</button><hr /><button role="menuitem" onClick={() => onAction("archive", project)}><Archive size={14} />채팅 보관</button><button role="menuitem" onClick={() => onAction("remove", project)}><X size={14} />프로젝트 제거</button></div>}{sessions.slice(0, 12).map((item) => <SessionNavItem key={item.key} item={item} active={item.key === current} onOpen={onOpen} onPin={onPin} onArchive={onArchive} onRename={onRename} />)}{sessions.length === 0 && <div className={mobileStyles.projectEmpty}>대화가 없습니다</div>}</div>;
 }
-function Message({ initial, name, time, user = false, children }: { initial: string; name: string; time: string; user?: boolean; children: React.ReactNode }) { return <article className={`${styles.message} ${user ? styles.messageUser : ""}`}><div className={styles.messageAvatar}>{initial}</div><div className={styles.messageContent}><div className={styles.messageName}>{name}<span>{time}</span></div><div className={styles.messageBody} data-message-body>{children}</div></div></article>; }
+function Message({ initial, name, time, user = false, toolCalls, children }: { initial: string; name: string; time: string; user?: boolean; toolCalls?: { name: string; count: number }[]; children: React.ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
+  if (user) return <article className={`${styles.message} ${styles.messageUser}`}><div className={styles.userBubble}>{children}</div></article>;
+  const thinking = toolCalls !== undefined && !String((children as React.ReactElement<{ text?: string }>)?.props?.text || "").trim();
+  return <article className={styles.message}>
+    <div className={styles.messageAvatar}>{initial}</div>
+    <div className={styles.messageContent}>
+      {toolCalls !== undefined && toolCalls.length === 0 && thinking && <div className={styles.toolCallSummary}><span className={styles.thinkingDots}>생각 중</span></div>}
+      {toolCalls !== undefined && toolCalls.length > 0 && <div className={styles.toolCallSummary}><button onClick={() => setExpanded((v) => !v)}>생각 중 · {toolCalls.length}개 도구 사용 [{expanded ? "접기" : "펼치기"}]</button>{expanded && <ul className={styles.toolCallDetails}>{toolCalls.map((tc) => <li key={tc.name}>{tc.name} × {tc.count}</li>)}</ul>}</div>}
+      {!thinking && <><div className={styles.messageName}>{name}<span>{time}</span></div><div className={styles.messageBody} data-message-body>{children}</div></>}
+    </div>
+  </article>;
+}
 type ComposerProps = { message: string; setMessage: (value: string) => void; submit: (event: FormEvent) => void; connected: boolean; slashQuery: string; commandMatches: readonly (readonly [string, string])[]; skillMatches: Skill[]; selectSlash: (value: string) => void; plusOpen: boolean; setPlusOpen: React.Dispatch<React.SetStateAction<boolean>>; contextOpen: boolean; setContextOpen: React.Dispatch<React.SetStateAction<boolean>>; permissionOpen: boolean; setPermissionOpen: React.Dispatch<React.SetStateAction<boolean>>; modelOpen: boolean; setModelOpen: React.Dispatch<React.SetStateAction<boolean>>; thinkingOpen: boolean; setThinkingOpen: React.Dispatch<React.SetStateAction<boolean>>; permissionMode: string; setPermissionMode: (value: string) => void; model: string; setModel: (value: string) => void; models: ModelOption[]; oauth: { provider: string; type: string; status: string; label?: string }[]; thinking: string; setThinking: (value: string) => void; fastMode: boolean; setFastMode: (value: boolean) => void; usage: Usage; context: ContextStats; attachments: Attachment[]; setAttachments: React.Dispatch<React.SetStateAction<Attachment[]>>; notify: (value: string) => void };
 function Composer(props: ComposerProps) {
   const { message, setMessage, submit, connected, slashQuery, commandMatches, skillMatches, selectSlash, plusOpen, setPlusOpen, contextOpen, setContextOpen, permissionOpen, setPermissionOpen, modelOpen, setModelOpen, thinkingOpen, setThinkingOpen, permissionMode, setPermissionMode, model, setModel, models, oauth, thinking, setThinking, fastMode, setFastMode, usage, context, attachments, setAttachments, notify } = props;
