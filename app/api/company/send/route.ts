@@ -4,19 +4,21 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
-  const body = await request.json().catch(() => null) as { message?: unknown; sessionKey?: unknown; model?: unknown; thinking?: unknown } | null;
+  const body = await request.json().catch(() => null) as { message?: unknown; sessionKey?: unknown; model?: unknown; thinking?: unknown; attachments?: unknown } | null;
   const message = typeof body?.message === "string" ? body.message.trim() : "";
   const sessionKey = typeof body?.sessionKey === "string" && /^agent:[a-z0-9_-]+:[a-z0-9:_-]+$/i.test(body.sessionKey) ? body.sessionKey : "agent:ceo:company-survival-test";
   if (!message || message.length > 20_000) return NextResponse.json({ error: "메시지가 비어 있거나 너무 깁니다." }, { status: 400 });
   const model = typeof body?.model === "string" && /^[a-z0-9._:@/-]+$/i.test(body.model) ? body.model : "";
   const thinking = typeof body?.thinking === "string" && ["off", "minimal", "low", "medium", "high", "xhigh", "adaptive", "max", "ultra"].includes(body.thinking) ? body.thinking : "";
-  startAgent(message, sessionKey, "company-chat-send", model, thinking);
+  const attachments = Array.isArray(body?.attachments) ? body.attachments.filter((item): item is string => typeof item === "string" && item.startsWith(`${process.env.HOME || "/Users/junzzang"}/.openclaw/workspace/uploads/`)).slice(0, 10) : [];
+  startAgent(message, sessionKey, "company-chat-send", model, thinking, attachments);
   return NextResponse.json({ accepted: true });
 }
 
-function startAgent(message: string, sessionKey: string, idempotencyKey: string, model: string, thinking: string) {
+function startAgent(message: string, sessionKey: string, idempotencyKey: string, model: string, thinking: string, attachments: string[]) {
   const agent = sessionKey.split(":")[1] || "main";
-  const args = ["agent", "--agent", agent, "--session-key", sessionKey, "--message", message, "--json", "--timeout", "600"];
+  const attachmentNote = attachments.length ? `\n\n첨부 파일:\n${attachments.map((path) => `- ${path}`).join("\n")}` : "";
+  const args = ["agent", "--agent", agent, "--session-key", sessionKey, "--message", `${message}${attachmentNote}`, "--json", "--timeout", "600"];
   if (model) args.push("--model", model);
   if (thinking) args.push("--thinking", thinking);
   const child = spawn("openclaw", args, {
