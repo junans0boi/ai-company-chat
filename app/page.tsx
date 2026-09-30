@@ -293,5 +293,43 @@ function Timeline({ sessions }: { sessions: GatewaySession[] }) { const recent =
 function sessionTitle(key: string) { return key.includes("company-survival-test") ? "오늘의 회사 생존 테스트" : key.split(":").slice(2).join(":") || "새 대화"; }
 async function loadHistory(key: string): Promise<{ messages: MessageItem[]; usage: Usage }> { const response = await fetch(`/api/openclaw/sessions?sessionKey=${encodeURIComponent(key)}`); if (!response.ok) throw new Error("대화를 불러오지 못했습니다."); const body = await response.json(); const agent = displayName(key.split(":")[1] || "openclaw"); const messages = (body.messages || []).map((item: { role?: string; content?: string }, index: number) => ({ id: `history-${index}`, role: item.role === "user" ? "user" : "assistant", name: item.role === "user" ? "You" : agent, text: item.content || "" })).filter((item: MessageItem) => item.text).reduce((merged: MessageItem[], item: MessageItem) => { const previous = merged.at(-1); if (previous?.role === item.role) previous.text += `\n\n${item.text}`; else merged.push({ ...item }); return merged; }, []); return { messages, usage: body.usage || { input: 0, output: 0, cost: 0 } }; }
 
-function MarkdownText({ text }: { text: string }) { const lines = text.replaceAll("\r", "").split("\n"); const blocks: React.ReactNode[] = []; let index = 0; while (index < lines.length) { const line = lines[index]; if (!line.trim()) { index++; continue; } if (line.startsWith("```")) { const language = line.slice(3).trim(); const code: string[] = []; index++; while (index < lines.length && !lines[index].startsWith("```")) code.push(lines[index++]); index++; blocks.push(<pre className={styles.markdownCode} key={`code-${index}`}><code data-language={language || undefined}>{code.join("\n")}</code></pre>); continue; } const heading = /^(#{1,6})\s+(.+)$/.exec(line); if (heading) { blocks.push(<h3 className={styles.markdownHeading} key={`heading-${index}`}>{inlineMarkdown(heading[2], `heading-${index}`)}</h3>); index++; continue; } if (/^([-*])\s+/.test(line)) { const items: string[] = []; while (index < lines.length && /^[-*]\s+/.test(lines[index])) items.push(lines[index++].replace(/^[-*]\s+/, "")); blocks.push(<ul className={styles.markdownList} key={`ul-${index}`}>{items.map((item, itemIndex) => <li key={itemIndex}>{inlineMarkdown(item, `ul-${index}-${itemIndex}`)}</li>)}</ul>); continue; } if (/^\d+\.\s+/.test(line)) { const items: string[] = []; while (index < lines.length && /^\d+\.\s+/.test(lines[index])) items.push(lines[index++].replace(/^\d+\.\s+/, "")); blocks.push(<ol className={styles.markdownList} key={`ol-${index}`}>{items.map((item, itemIndex) => <li key={itemIndex}>{inlineMarkdown(item, `ol-${index}-${itemIndex}`)}</li>)}</ol>); continue; } if (/^>\s?/.test(line)) { const quote: string[] = []; while (index < lines.length && /^>\s?/.test(lines[index])) quote.push(lines[index++].replace(/^>\s?/, "")); blocks.push(<blockquote className={styles.markdownQuote} key={`quote-${index}`}>{quote.map((item, itemIndex) => <div key={itemIndex}>{inlineMarkdown(item, `quote-${index}-${itemIndex}`)}</div>)}</blockquote>); continue; } if (/^---+$/.test(line.trim())) { blocks.push(<hr className={styles.markdownRule} key={`rule-${index}`} />); index++; continue; } const paragraph: string[] = []; while (index < lines.length && lines[index].trim() && !/^```|^#{1,6}\s+|^[-*]\s+|^\d+\.\s+|^>\s?|^---+$/.test(lines[index])) paragraph.push(lines[index++]); blocks.push(<p key={`paragraph-${index}`}>{inlineMarkdown(paragraph.join(" "), `paragraph-${index}`)}</p>); } return <div className={styles.markdown}>{blocks}</div>; }
+function MarkdownText({ text }: { text: string }) {
+  const lines = text.replaceAll("\r", "").split("\n");
+  const blocks: React.ReactNode[] = [];
+  let index = 0;
+  while (index < lines.length) {
+    const line = lines[index];
+    if (!line.trim()) { index++; continue; }
+    if (line.startsWith("```")) {
+      const language = line.slice(3).trim();
+      const code: string[] = [];
+      index++;
+      while (index < lines.length && !lines[index].startsWith("```")) code.push(lines[index++]);
+      index++;
+      blocks.push(<pre className={styles.markdownCode} key={`code-${index}`}><code data-language={language || undefined}>{code.join("\n")}</code></pre>);
+      continue;
+    }
+    if (index + 1 < lines.length && line.includes("|") && isTableSeparator(lines[index + 1])) {
+      const header = parseTableRow(line);
+      index += 2;
+      const rows: string[][] = [];
+      while (index < lines.length && lines[index].trim() && lines[index].includes("|")) rows.push(parseTableRow(lines[index++]));
+      blocks.push(<div className={styles.markdownTableWrap} key={`table-${index}`}><table className={styles.markdownTable}><thead><tr>{header.map((cell, cellIndex) => <th key={cellIndex}>{inlineMarkdown(cell, `table-head-${index}-${cellIndex}`)}</th>)}</tr></thead><tbody>{rows.map((row, rowIndex) => <tr key={rowIndex}>{header.map((_, cellIndex) => <td key={cellIndex}>{inlineMarkdown(row[cellIndex] || "", `table-cell-${index}-${rowIndex}-${cellIndex}`)}</td>)}</tr>)}</tbody></table></div>);
+      continue;
+    }
+    const heading = /^(#{1,6})\s+(.+)$/.exec(line);
+    if (heading) { blocks.push(<h3 className={styles.markdownHeading} key={`heading-${index}`}>{inlineMarkdown(heading[2], `heading-${index}`)}</h3>); index++; continue; }
+    if (/^([-*])\s+/.test(line)) { const items: string[] = []; while (index < lines.length && /^[-*]\s+/.test(lines[index])) items.push(lines[index++].replace(/^[-*]\s+/, "")); blocks.push(<ul className={styles.markdownList} key={`ul-${index}`}>{items.map((item, itemIndex) => <li key={itemIndex}>{inlineMarkdown(item, `ul-${index}-${itemIndex}`)}</li>)}</ul>); continue; }
+    if (/^\d+\.\s+/.test(line)) { const items: string[] = []; while (index < lines.length && /^\d+\.\s+/.test(lines[index])) items.push(lines[index++].replace(/^\d+\.\s+/, "")); blocks.push(<ol className={styles.markdownList} key={`ol-${index}`}>{items.map((item, itemIndex) => <li key={itemIndex}>{inlineMarkdown(item, `ol-${index}-${itemIndex}`)}</li>)}</ol>); continue; }
+    if (/^>\s?/.test(line)) { const quote: string[] = []; while (index < lines.length && /^>\s?/.test(lines[index])) quote.push(lines[index++].replace(/^>\s?/, "")); blocks.push(<blockquote className={styles.markdownQuote} key={`quote-${index}`}>{quote.map((item, itemIndex) => <div key={itemIndex}>{inlineMarkdown(item, `quote-${index}-${itemIndex}`)}</div>)}</blockquote>); continue; }
+    if (/^---+$/.test(line.trim())) { blocks.push(<hr className={styles.markdownRule} key={`rule-${index}`} />); index++; continue; }
+    const paragraph: string[] = [];
+    while (index < lines.length && lines[index].trim() && !/^```|^#{1,6}\s+|^[-*]\s+|^\d+\.\s+|^>\s?|^---+$/.test(lines[index])) paragraph.push(lines[index++]);
+    blocks.push(<p key={`paragraph-${index}`}>{inlineMarkdown(paragraph.join(" "), `paragraph-${index}`)}</p>);
+  }
+  return <div className={styles.markdown}>{blocks}</div>;
+}
+
+function parseTableRow(line: string) { return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((cell) => cell.trim()); }
+function isTableSeparator(line: string) { const cells = parseTableRow(line); return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell)); }
 function inlineMarkdown(value: string, keyPrefix: string) { const parts = value.split(/(\*\*[^*]+\*\*|__[^_]+__|`[^`]+`|\*[^*]+\*|_[^_]+_|\[[^\]]+\]\(https?:\/\/[^)]+\))/g).filter(Boolean); return parts.map((part, index) => { const key = `${keyPrefix}-${index}`; if (/^\*\*.+\*\*$|^__.+__$/.test(part)) return <strong key={key}>{part.slice(2, -2)}</strong>; if (/^\*.+\*$|^_.+_$/.test(part)) return <em key={key}>{part.slice(1, -1)}</em>; if (/^`.+`$/.test(part)) return <code className={styles.markdownInlineCode} key={key}>{part.slice(1, -1)}</code>; const link = /^\[([^\]]+)\]\((https?:\/\/[^)]+)\)$/.exec(part); if (link) return <a href={link[2]} target="_blank" rel="noreferrer" key={key}>{link[1]}</a>; return <span key={key}>{part}</span>; }); }
