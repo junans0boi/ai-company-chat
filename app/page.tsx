@@ -1,14 +1,14 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { Check, ChevronDown, CircleDot, FileText, FolderOpen, GitBranch, Paperclip, Send, Settings, Sparkles } from "lucide-react";
+import { Check, ChevronDown, CircleDot, FileText, FolderOpen, GitBranch, Paperclip, Plus, Search, Send, Settings, Sparkles } from "lucide-react";
 import styles from "./CompanyConsole.module.css";
 import liveStyles from "./LiveConsole.module.css";
 import { QUESTIONS, RESULTS } from "./company/quiz/questions";
 
 const pipeline = ["ceo", "architect", "developer", "reviewer"] as const;
 type GatewayAgent = { id?: string; name?: string; model?: { primary?: string } };
-type GatewaySession = { key?: string; displayName?: string; derivedTitle?: string; lastMessagePreview?: string; agentId?: string; updatedAt?: number | null; unread?: boolean; status?: string; hasActiveRun?: boolean; isBackground?: boolean };
+type GatewaySession = { key?: string; displayName?: string; projectId?: string | null; lastMessagePreview?: string; agentId?: string; updatedAt?: number | null; status?: string; hasActiveRun?: boolean };
 type Artifact = { path: string; size: number; updatedAt: number };
 type MessageItem = { id: string; role: "user" | "assistant"; name: string; text: string };
 
@@ -29,65 +29,26 @@ export default function CompanyPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
+  const [skills, setSkills] = useState<string[]>([]);
+  const [search, setSearch] = useState("");
+  const [selectedAgent, setSelectedAgent] = useState("ceo");
 
   useEffect(() => {
-    const socket = new WebSocket(`${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/api/gateway/ws`);
-    socketRef.current = socket;
-    const requestSessions = () => {
-      if (socket.readyState === WebSocket.OPEN) send(socket, `sessions-${newId()}`, "sessions.list", { limit: 40, includeLastMessage: true, configuredAgentsOnly: true, sortBy: "activity" });
-    };
+    const requestSessions = () => { void fetch("/api/openclaw/sessions").then(async (response) => { if (!response.ok) throw new Error("OpenClaw 세션을 불러오지 못했습니다."); const body = await response.json(); const listed = (body.sessions || []) as GatewaySession[]; setSessions(listed); setGatewayAgents(Array.from(new Map(listed.filter((item) => item.agentId).map((item) => [item.agentId as string, { id: item.agentId, name: item.agentId } as GatewayAgent])).values())); setConnected(true); setSessionsLoading(false); }).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "OpenClaw 연결 오류")); };
     refreshSessionsRef.current = requestSessions;
-    socket.onopen = () => socket.send(JSON.stringify({ type: "req", id: "connect", method: "connect", params: { minProtocol: 3, maxProtocol: 4, client: { id: "openclaw-control-ui", version: "ai-company-chat", mode: "webchat", platform: "web" }, role: "operator", scopes: ["operator.read", "operator.write", "operator.admin", "operator.approvals", "operator.pairing"] } }));
-    socket.onmessage = (event) => {
-      const frame = JSON.parse(String(event.data));
-      if (frame.type === "event" && frame.event === "connect.challenge") return;
-      if (frame.type === "res" && frame.id === "connect") {
-        if (!frame.ok) return setError(frame.error?.message || "Gateway 연결 실패");
-        setConnected(true);
-        send(socket, "agents", "agents.list", {});
-        send(socket, "history", "chat.history", { sessionKey: sessionKeyRef.current, limit: 80 });
-        requestSessions();
-      }
-      if (frame.type === "res" && frame.id === "agents" && frame.ok) {
-        const listedAgents = Array.isArray(frame.payload?.agents) ? frame.payload.agents : [];
-        setGatewayAgents(listedAgents);
-        const ceo = listedAgents.find((agent: GatewayAgent) => agent.id === "ceo")?.id || "ceo";
-        const nextKey = `agent:${ceo}:company-survival-test`;
-        sessionKeyRef.current = nextKey;
-        setSessionKey(nextKey);
-        send(socket, "history", "chat.history", { sessionKey: nextKey, limit: 80 });
-      }
-      if (frame.type === "res" && typeof frame.id === "string" && frame.id.startsWith("sessions-") && frame.ok) {
-        setSessions(Array.isArray(frame.payload?.sessions) ? frame.payload.sessions : []);
-        setSessionsLoading(false);
-      }
-      if (frame.type === "res" && frame.id === "history" && frame.ok) {
-        const agentName = displayName(sessionKeyRef.current.split(":")[1] || "agent");
-        const history = (frame.payload?.messages || []).map((item: { role?: string; content?: unknown }, index: number) => {
-          const role = item.role === "user" ? "user" : item.role === "assistant" ? "assistant" : null;
-          const text = extractText(item.content);
-          return role && text ? { id: `history-${index}`, role, name: role === "user" ? "You" : agentName, text } : null;
-        }).filter(Boolean) as MessageItem[];
-        setMessages(history);
-      }
-      if (frame.type === "event" && frame.event === "chat" && frame.payload?.sessionKey === sessionKeyRef.current && frame.payload?.state === "final") {
-        const text = extractText(frame.payload.message);
-        if (text) setMessages((current) => [...current, { id: newId(), role: "assistant", name: displayName(sessionKeyRef.current.split(":")[1] || "agent"), text }]);
-        window.setTimeout(() => refreshSessionsRef.current(), 500);
-      }
-    };
-    socket.onerror = () => setError("Gateway 연결 오류");
-    socket.onclose = () => setConnected(false);
+    requestSessions();
+    void fetch("/api/openclaw/skills").then((response) => response.json()).then((body) => setSkills(body.skills || [])).catch(() => undefined);
+    void loadHistory(sessionKeyRef.current).then(setMessages).catch(() => undefined);
     const interval = window.setInterval(requestSessions, 10_000);
     void loadArtifacts().then(setArtifacts).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "아티팩트를 불러오지 못했습니다."));
-    return () => { window.clearInterval(interval); refreshSessionsRef.current = () => undefined; socket.close(); };
+    return () => { window.clearInterval(interval); refreshSessionsRef.current = () => undefined; };
   }, []);
 
   const notify = (text: string) => { setToast(text); window.setTimeout(() => setToast(""), 2200); };
   const openSession = (key: string) => {
     sessionKeyRef.current = key;
     setSessionKey(key);
-    if (socketRef.current?.readyState === WebSocket.OPEN) send(socketRef.current, "history", "chat.history", { sessionKey: key, limit: 80 });
+    void loadHistory(key).then(setMessages).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : "대화를 불러오지 못했습니다."));
   };
   const approve = () => {
     void fetch("/api/company/approve", { method: "POST" }).then(async (response) => {
@@ -100,23 +61,25 @@ export default function CompanyPage() {
     const text = message.trim();
     if (!text || !connected) return;
     setMessages((current) => [...current, { id: newId(), role: "user", name: "You", text }]);
-    void fetch("/api/company/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: text, sessionKey }) }).then(async (response) => { if (!response.ok) setError((await response.json().catch(() => null))?.error || "CEO에게 메시지를 전달하지 못했습니다."); });
+    void fetch("/api/company/send", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ message: text, sessionKey }) }).then(async (response) => { if (!response.ok) setError((await response.json().catch(() => null))?.error || "메시지를 전달하지 못했습니다."); window.setTimeout(() => { void loadHistory(sessionKey).then(setMessages); refreshSessionsRef.current(); }, 1200); });
     setMessage("");
   };
 
   return <div className={styles.app}>
     <aside className={styles.sidebar}>
       <div className={styles.brand}><span className={styles.brandMark}><Sparkles size={14} /></span>AI Company</div>
+      <button className={styles.newChat} onClick={() => { const key = `agent:${selectedAgent}:web:${crypto.randomUUID()}`; openSession(key); setMessages([]); }}><Plus size={14} />New chat</button>
+      <label className={styles.search}><Search size={13} /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search chats" /></label>
       <button className={styles.workspace} onClick={() => setSettingsOpen(true)}><span><small>WORKSPACE</small><br />/backup/workspace/ai-company-chat</span><ChevronDown size={15} /></button>
-      <NavSection label="Projects"><NavItem active href="/company/quiz"><span className={styles.projectDot} />오늘의 회사 생존 테스트</NavItem><NavItem active={connected} href="/"><span className={styles.projectDotMuted} />AI Company Console</NavItem><NavItem href="https://github.com/junans0boi/claw3d-company-console"><span className={styles.projectDotMuted} />Claw3D</NavItem></NavSection>
-      <NavSection label="Recent sessions">{sessions.filter((item) => !item.isBackground).slice(0, 5).map((item) => <NavItem key={item.key} onClick={() => item.key && openSession(item.key)}>{item.derivedTitle || item.displayName || item.key || "이름 없는 세션"}</NavItem>)}{!sessionsLoading && sessions.filter((item) => !item.isBackground).length === 0 && <div className={liveStyles.emptyState}>최근 세션 없음</div>}</NavSection>
-      <NavSection label="Agents">{gatewayAgents.map((agent) => <NavItem key={agent.id} onClick={() => agent.id && openSession(`agent:${agent.id}:company-survival-test`)}><span className={styles.agentGlyph}>{initialOf(agent.id || agent.name || "?")}</span>{agent.name || agent.id}</NavItem>)}{!sessionsLoading && gatewayAgents.length === 0 && <div className={liveStyles.emptyState}>Gateway 에이전트 없음</div>}</NavSection>
+      <NavSection label="Projects"><NavItem active={sessionKey.includes("company-survival-test")} onClick={() => openSession("agent:ceo:company-survival-test")}><span className={styles.projectDot} />오늘의 회사 생존 테스트</NavItem></NavSection>
+      <NavSection label="Chats">{sessions.filter((item) => !item.projectId && `${item.displayName} ${item.key}`.toLowerCase().includes(search.toLowerCase())).slice(0, 20).map((item) => <NavItem key={item.key} active={item.key === sessionKey} onClick={() => item.key && openSession(item.key)}>{item.displayName || item.key}</NavItem>)}{!sessionsLoading && sessions.filter((item) => !item.projectId).length === 0 && <div className={liveStyles.emptyState}>대화 없음</div>}</NavSection>
+      <NavSection label="Skills">{skills.slice(0, 8).map((skill) => <NavItem key={skill} onClick={() => setMessage(`/${skill} `)}><span className={styles.agentGlyph}>/</span>{skill}</NavItem>)}</NavSection>
       <div className={styles.profile}><span className={styles.avatar}>J</span><span><strong>junzzang</strong><br /><small>M1 local gateway</small></span></div>
     </aside>
     <main className={styles.main}>
-      <header className={styles.topbar}><div className={styles.crumb}><strong>AI Company</strong><span>/</span>오늘의 회사 생존 테스트</div><div className={styles.topActions}><span className={styles.connection}><i />{connected ? "Gateway online" : "Gateway offline"}</span><button className={styles.iconButton} aria-label="설정" onClick={() => setSettingsOpen(true)}><Settings size={15} /></button></div></header>
+      <header className={styles.topbar}><div className={styles.crumb}><strong>AI Company</strong><span>/</span>{sessionTitle(sessionKey)}</div><div className={styles.topActions}><span className={styles.connection}><i />{connected ? "OpenClaw online" : "OpenClaw offline"}</span><button className={styles.iconButton} aria-label="설정" onClick={() => setSettingsOpen(true)}><Settings size={15} /></button></div></header>
       <section className={styles.conversation}>
-        <div className={styles.sessionHead}><div><div className={styles.kicker}>CEO SESSION</div><h1>오늘의 회사 생존 테스트</h1><p>{connected ? `${gatewayAgents.length} agents · ${sessions.length} live sessions` : "Gateway 연결 대기 중"}</p></div><span className={approved ? styles.runChipActive : styles.runChip}>{approved ? "Running" : "Awaiting approval"}</span></div>
+        <div className={styles.sessionHead}><div><div className={styles.kicker}>{sessionKey.split(":")[1]?.toUpperCase() || "OPENCLAW"} SESSION</div><h1>{sessionTitle(sessionKey)}</h1><p>{connected ? `${gatewayAgents.length} agents · ${sessions.length} sessions` : "OpenClaw 연결 대기 중"}</p></div><span className={approved ? styles.runChipActive : styles.runChip}>{approved ? "Running" : "Ready"}</span></div>
         {messages.length === 0 && connected && <Message initial="C" name="CEO" time="now">Gateway에 연결되었습니다. 아래 입력창에서 실제 CEO 에이전트에게 요구사항을 보내세요.</Message>}
         {messages.map((item) => <Message key={item.id} initial={item.role === "user" ? "J" : "C"} name={item.name} time="live" user={item.role === "user"}>{item.text}</Message>)}
         {connected && <Message initial="C" name="CEO" time="live">CEO 승인 후 Architect가 구조를 잡고 Developer가 구현한 뒤 Reviewer가 검증합니다.<div className={styles.brief}><div className={styles.briefHead}><strong>Approval brief</strong><span>company-brain</span></div><div className={styles.briefGrid}><BriefCell label="GOAL">30초 안에 끝나는 회사 생존 유형 테스트</BriefCell><BriefCell label="DELIVERABLE">모바일 랜딩 · {QUESTIONS.length}문항 · {Object.keys(RESULTS).length}개 결과 · 공유</BriefCell><BriefCell label="OUT OF SCOPE">로그인, DB, 광고, 관리자 통계</BriefCell><BriefCell label="HANDOFF">Architect → Developer → Reviewer</BriefCell></div><div className={styles.briefFooter}><button className={styles.secondary} onClick={() => notify("수정 요청을 CEO 세션에 전달하려면 메시지를 보내세요.")}>수정 요청</button><button className={styles.approve} onClick={approve} disabled={approved}>{approved ? <><Check size={14} /> Approved</> : "승인하고 진행"}</button></div></div></Message>}
@@ -146,4 +109,7 @@ function Message({ initial, name, time, user = false, children }: { initial: str
 function BriefCell({ label, children }: { label: string; children: React.ReactNode }) { return <div className={styles.briefCell}><label>{label}</label><p>{children}</p></div>; }
 function Panel({ title, children }: { title: string; children: React.ReactNode }) { return <section className={styles.panel}><div className={styles.panelTitle}>{title}</div>{children}</section>; }
 function AgentRow({ id, agent, sessions }: { id: string; agent?: GatewayAgent; sessions: GatewaySession[] }) { const latest = sessions.find((item) => item.agentId === id); const running = sessions.some((item) => item.agentId === id && item.hasActiveRun); const status = running ? "Running" : latest?.status === "failed" ? "Needs attention" : latest ? "Ready" : "No session"; return <div className={styles.agent}><span className={styles.agentIcon}>{initialOf(id)}</span><div><div>{agent?.name || id}</div><small>{status} · {agent?.model?.primary || "configured"}</small></div><span className={running ? styles.statusWorking : latest?.status === "failed" ? liveStyles.statusFailed : styles.status} /></div>; }
-function Timeline({ sessions }: { sessions: GatewaySession[] }) { const recent = sessions.filter((item) => !item.isBackground).slice(0, 3); return <div className={styles.timeline}>{recent.map((item) => <div className={`${styles.event} ${item.hasActiveRun ? styles.eventWorking : styles.eventDone}`} key={item.key}><i /><span>{item.displayName || item.derivedTitle || item.agentId || "Session"}<small>{item.hasActiveRun ? "running" : item.lastMessagePreview || item.status || "updated"}</small></span></div>)}{recent.length === 0 && <div className={liveStyles.emptyState}>활동 기록 없음</div>}</div>; }
+function Timeline({ sessions }: { sessions: GatewaySession[] }) { const recent = sessions.slice(0, 3); return <div className={styles.timeline}>{recent.map((item) => <div className={`${styles.event} ${item.hasActiveRun ? styles.eventWorking : styles.eventDone}`} key={item.key}><i /><span>{item.displayName || item.agentId || "Session"}<small>{item.hasActiveRun ? "running" : item.status || "updated"}</small></span></div>)}{recent.length === 0 && <div className={liveStyles.emptyState}>활동 기록 없음</div>}</div>; }
+
+function sessionTitle(key: string) { return key.includes("company-survival-test") ? "오늘의 회사 생존 테스트" : key.split(":").slice(2).join(":") || "새 대화"; }
+async function loadHistory(key: string): Promise<MessageItem[]> { const response = await fetch(`/api/openclaw/sessions?sessionKey=${encodeURIComponent(key)}`); if (!response.ok) throw new Error("대화를 불러오지 못했습니다."); const body = await response.json(); const agent = displayName(key.split(":")[1] || "openclaw"); return (body.messages || []).map((item: { role?: string; content?: string }, index: number) => ({ id: `history-${index}`, role: item.role === "user" ? "user" : "assistant", name: item.role === "user" ? "You" : agent, text: item.content || "" })).filter((item: MessageItem) => item.text); }
