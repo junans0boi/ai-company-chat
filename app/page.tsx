@@ -281,7 +281,7 @@ export default function CompanyPage() {
               setMessages(msgs); setUsage(result.usage);
               if (last?.id) { setDoneMessageId(last.id); window.setTimeout(() => setDoneMessageId(""), 2000); }
             }
-            if (isFirstMessage && /agent:[^:]+:web:/i.test(key)) void renameSession(key, textToSend.slice(0, 40).replace(/\n/g, " ").trim());
+            if (isFirstMessage && /agent:[^:]+:(web|subagent):/i.test(key)) void renameSession(key, textToSend.slice(0, 40).replace(/\n/g, " ").trim());
             break outer;
           } else if (evt.type === "error") { setError(evt.error || "오류가 발생했습니다."); break outer; }
         }
@@ -405,7 +405,7 @@ function Composer(props: ComposerProps) {
   </form>;
 }
 
-function sessionTitle(key: string) { const parts = key.split(":").slice(2).join(":"); return /^web:[0-9a-f-]+$/i.test(parts) || !parts ? "새 대화" : parts; }
+function sessionTitle(key: string) { const parts = key.split(":").slice(2).join(":"); return /^(web|subagent):[0-9a-f-]+$/i.test(parts) || !parts ? "새 대화" : parts; }
 async function loadHistory(key: string): Promise<{ messages: MessageItem[]; usage: Usage }> { const response = await fetch(`/api/openclaw/sessions?sessionKey=${encodeURIComponent(key)}`); if (!response.ok) throw new Error("대화를 불러오지 못했습니다."); const body = await response.json(); const agent = displayName(key.split(":")[1] || "openclaw"); const messages = (body.messages || []).map((item: { role?: string; content?: string }, index: number) => ({ id: `history-${index}`, role: item.role === "user" ? "user" : "assistant", name: item.role === "user" ? "You" : agent, text: item.content || "" })).filter((item: MessageItem) => item.text).reduce((merged: MessageItem[], item: MessageItem) => { const previous = merged.at(-1); if (previous?.role === item.role) previous.text += `\n\n${item.text}`; else merged.push({ ...item }); return merged; }, []); return { messages, usage: body.usage || { input: 0, output: 0, cost: 0 } }; }
 
 function MarkdownText({ text }: { text: string }) {
