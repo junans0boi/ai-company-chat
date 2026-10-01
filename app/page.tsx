@@ -32,6 +32,7 @@ export default function CompanyPage() {
   const [sidebarWidth, setSidebarWidth] = useState(250);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<MessageItem[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [sessionKey, setSessionKey] = useState("");
   const [gatewayAgents, setGatewayAgents] = useState<GatewayAgent[]>([]);
   const [sessions, setSessions] = useState<GatewaySession[]>([]);
@@ -91,9 +92,11 @@ export default function CompanyPage() {
     history.replaceState(null, "", `/?session=${encodeURIComponent(key)}`);
     setMessages([]); setUsage({ input: 0, output: 0, cost: 0 }); setError(""); setMobileMenuOpen(false);
     setNewChatSetup(false);
+    setHistoryLoading(true);
     void refreshModelData(key);
     void loadHistory(key).then((result) => {
       if (request !== historyRequestRef.current || key !== sessionKeyRef.current) return;
+      setHistoryLoading(false);
       setMessages(result.messages); setUsage(result.usage);
       if (result.messages.at(-1)?.role === "user") {
         const agentName = displayName(key.split(":")[1] || "ceo");
@@ -119,7 +122,7 @@ export default function CompanyPage() {
         };
         poll();
       }
-    }).catch((reason: unknown) => { if (request === historyRequestRef.current) setError(reason instanceof Error ? reason.message : "대화를 불러오지 못했습니다."); });
+    }).catch((reason: unknown) => { if (request === historyRequestRef.current) { setHistoryLoading(false); setError(reason instanceof Error ? reason.message : "대화를 불러오지 못했습니다."); } });
   }, []);
 
   useEffect(() => {
@@ -314,7 +317,8 @@ export default function CompanyPage() {
     <main className={styles.main}>
       <header className={styles.topbar} data-topbar><div className={styles.topbarLeft} data-topbar-left><button className={styles.iconButton} aria-label="사이드바" onClick={() => { if (matchMedia("(max-width: 640px)").matches) setMobileMenuOpen((open) => !open); else setSidebarOpen((open) => !open); }}>{mobileMenuOpen ? <X size={15} /> : sidebarOpen ? <PanelLeftClose size={15} /> : <PanelLeftOpen size={15} />}</button><div className={styles.crumb} data-crumb><strong>AI Company</strong><span>/</span>{sessionTitle(sessionKey)}</div></div><div className={styles.topActions} data-top-actions><span className={styles.connection}><i className={connected ? mobileStyles.connected : mobileStyles.disconnected} />{connected ? "OpenClaw online" : "OpenClaw offline"}</span><button className={styles.iconButton} aria-label={theme === "light" ? "다크 모드" : "라이트 모드"} title={theme === "light" ? "다크 모드" : "라이트 모드"} onClick={toggleTheme}>{theme === "light" ? <Moon size={15} /> : <Sun size={15} />}</button><button className={styles.iconButton} aria-label="설정" onClick={() => setSettingsOpen(true)}><Settings size={15} /></button></div></header>
       <section className={styles.conversation} data-conversation>
-        {newChatSetup && messages.length === 0 && <div className={styles.newChatSetup}><label>프로젝트<select value={activeProjectId} onChange={(event) => setActiveProjectId(event.target.value)}><option value="">프로젝트 없이 시작</option>{projects.filter((project) => project.section !== "보관된 프로젝트").map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>{activeProjectId && <label>디렉터리<input value={projects.find((project) => project.id === activeProjectId)?.directory || ""} readOnly /></label>}</div>}
+        {historyLoading && <div className={styles.historyLoading}><span className={styles.historySpinner} /><span>대화 불러오는 중…</span></div>}
+        {newChatSetup && !historyLoading && messages.length === 0 && <div className={styles.newChatSetup}><label>프로젝트<select value={activeProjectId} onChange={(event) => setActiveProjectId(event.target.value)}><option value="">프로젝트 없이 시작</option>{projects.filter((project) => project.section !== "보관된 프로젝트").map((project) => <option key={project.id} value={project.id}>{project.name}</option>)}</select></label>{activeProjectId && <label>디렉터리<input value={projects.find((project) => project.id === activeProjectId)?.directory || ""} readOnly /></label>}</div>}
         <div className={styles.sessionHead} data-session-head><div><div className={styles.kicker}>{sessionKey.split(":")[1] || "openclaw"}</div><h1>{sessions.find((s) => s.key === sessionKey)?.displayName || sessionTitle(sessionKey)}</h1></div></div>
         {messages.map((item) => <Message key={item.id} initial={item.role === "user" ? "J" : initialOf(item.name)} name={item.name} user={item.role === "user"} toolCalls={item.toolCalls} timestamp={item.timestamp} elapsed={item.elapsed} outputTokens={item.outputTokens} done={item.id === doneMessageId} onCopy={() => navigator.clipboard.writeText(item.text).then(() => notify("복사됨")).catch(() => notify("복사 실패"))} onReply={item.role === "assistant" ? () => setReplyTo({ name: item.name, text: item.text }) : undefined}><MarkdownText text={item.text} /></Message>)}
         {error && <div className={styles.toast} role="alert" data-toast>{error}</div>}
