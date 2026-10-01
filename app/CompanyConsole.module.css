@@ -128,7 +128,7 @@
 .replyBanner>button{border:none;background:none;color:#6870a0;cursor:pointer;padding:2px;border-radius:3px;display:grid;place-items:center;flex-shrink:0}
 .replyBanner>button:hover{color:var(--text)}
 .composer{border:1px solid var(--line);background:var(--panel);border-radius:12px;margin:0 auto 12px;width:min(720px,100%);padding:12px;position:relative;flex-shrink:0}
-.composer textarea{display:block;width:100%;resize:none;border:0;outline:0;background:transparent;color:var(--text);min-height:52px;line-height:1.6;font-size:13px}
+.composer textarea{display:block;width:100%;resize:none;border:0;outline:0;background:transparent;color:var(--text);min-height:52px;max-height:240px;line-height:1.6;font-size:13px;overflow-y:auto}
 .composer textarea::placeholder{color:#4a4b5c}
 .composerFooter{display:flex;align-items:center;justify-content:space-between;margin-top:8px;color:#4a4b5c;font-size:10px}
 .composerFooter>span{display:none}
