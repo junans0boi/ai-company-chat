@@ -95,7 +95,17 @@ function history(key: string) {
         if (message?.role === "assistant") latestUsage = current;
       }
       if (message?.role !== "user" && message?.role !== "assistant") return [];
-      const raw = typeof message.content === "string" ? message.content : Array.isArray(message.content) ? message.content.filter((part: { type?: string }) => part.type === "text").map((part: { text?: string }) => part.text || "").join("\n") : "";
+      let raw = "";
+      if (typeof message.content === "string") {
+        raw = message.content;
+      } else if (Array.isArray(message.content)) {
+        const parts: string[] = [];
+        for (const part of message.content as { type?: string; text?: string; thinking?: string; name?: string; arguments?: { action?: string; message?: string } }[]) {
+          if (part.type === "text" && part.text) parts.push(part.text);
+          else if (part.type === "toolCall" && part.name === "message" && part.arguments?.message) parts.push(part.arguments.message);
+        }
+        raw = parts.join("\n");
+      }
       const content = stripInternalContext(raw);
       return content ? [{ role: message.role, content }] : [];
     } catch { return []; }
