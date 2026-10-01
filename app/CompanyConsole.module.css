@@ -94,6 +94,16 @@
 .toolCallDetails li{font-size:11px;background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:2px 7px;color:#9090b0}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
 .thinkingDots{animation:blink 1.2s ease-in-out infinite}
+/* agent color labels */
+.messageAvatar[data-agent="ceo"]{background:#2d1b69;color:#a78bfa}
+.messageAvatar[data-agent="developer"]{background:#064e3b;color:#34d399}
+.messageAvatar[data-agent="architect"]{background:#1e3a5f;color:#60a5fa}
+.messageAvatar[data-agent="reviewer"]{background:#78350f;color:#fbbf24}
+/* done indicator */
+@keyframes messageDone{0%{outline:2px solid rgba(159,255,84,.35);border-radius:8px}100%{outline:2px solid transparent}}
+.messageDone{animation:messageDone 1.8s ease-out}
+/* stop button */
+.sendStop{background:#c62828!important;color:#fff!important}
 /* ── new chat setup ── */
 .newChatSetup{display:flex;gap:8px;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:14px;margin-bottom:20px}
 .newChatSetup label{display:grid;gap:6px;color:var(--muted);font-size:11px;font-weight:500;flex:1}
@@ -235,6 +245,10 @@
 .app.themeLight .sessionOpen{color:#555770}
 .app.themeLight .avatar{background:#e8ecf8;color:#3a6000}
 .app.themeLight .markdown a{color:#2b5fd6}
+.app.themeLight .messageAvatar[data-agent="ceo"]{background:#ede9fe;color:#7c3aed}
+.app.themeLight .messageAvatar[data-agent="developer"]{background:#d1fae5;color:#065f46}
+.app.themeLight .messageAvatar[data-agent="architect"]{background:#dbeafe;color:#1d4ed8}
+.app.themeLight .messageAvatar[data-agent="reviewer"]{background:#fef3c7;color:#92400e}
 .app.themeLight .permissionButton{background:#fce8de;color:#7a3820}
 .app.themeLight .toolbarButton{color:#4a4b5c}
 .app.themeLight .markdownTable td{color:#3c3e52}

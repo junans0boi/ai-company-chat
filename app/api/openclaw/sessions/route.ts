@@ -70,6 +70,10 @@ export async function POST(request: Request) {
   return NextResponse.json({ ok: true });
 }
 
+function stripInternalContext(text: string) {
+  return text.replace(/<<<BEGINOPENCLAWINTERNAL_CONTEXT>>>[\s\S]*?<<<ENDOPENCLAWINTERNALCONTEXT>>>/g, "").trim();
+}
+
 function history(key: string) {
   const match = safeKey.exec(key);
   if (!match) return NextResponse.json({ error: "유효하지 않은 세션입니다." }, { status: 400 });
@@ -91,7 +95,8 @@ function history(key: string) {
         if (message?.role === "assistant") latestUsage = current;
       }
       if (message?.role !== "user" && message?.role !== "assistant") return [];
-      const content = typeof message.content === "string" ? message.content : Array.isArray(message.content) ? message.content.filter((part: { type?: string }) => part.type === "text").map((part: { text?: string }) => part.text || "").join("\n") : "";
+      const raw = typeof message.content === "string" ? message.content : Array.isArray(message.content) ? message.content.filter((part: { type?: string }) => part.type === "text").map((part: { text?: string }) => part.text || "").join("\n") : "";
+      const content = stripInternalContext(raw);
       return content ? [{ role: message.role, content }] : [];
     } catch { return []; }
   });
