@@ -88,7 +88,26 @@ export default function CompanyPage() {
     setMessages([]); setUsage({ input: 0, output: 0, cost: 0 }); setError(""); setMobileMenuOpen(false);
     setNewChatSetup(false);
     void refreshModelData(key);
-    void loadHistory(key).then((result) => { if (request === historyRequestRef.current && key === sessionKeyRef.current) { setMessages(result.messages); setUsage(result.usage); } }).catch((reason: unknown) => { if (request === historyRequestRef.current) setError(reason instanceof Error ? reason.message : "대화를 불러오지 못했습니다."); });
+    void loadHistory(key).then((result) => {
+      if (request !== historyRequestRef.current || key !== sessionKeyRef.current) return;
+      setMessages(result.messages); setUsage(result.usage);
+      if (result.messages.at(-1)?.role === "user") {
+        // AI is still working (page was refreshed mid-stream) — poll until response arrives
+        const deadline = Date.now() + 5 * 60 * 1000;
+        const poll = () => {
+          if (Date.now() > deadline || request !== historyRequestRef.current || key !== sessionKeyRef.current) return;
+          window.setTimeout(async () => {
+            if (request !== historyRequestRef.current || key !== sessionKeyRef.current) return;
+            const fresh = await loadHistory(key).catch(() => null);
+            if (!fresh || request !== historyRequestRef.current || key !== sessionKeyRef.current) return;
+            setMessages(fresh.messages); setUsage(fresh.usage);
+            if (fresh.messages.at(-1)?.role === "user") poll();
+            else { void refreshModelData(key); void refreshSessionsRef.current(); }
+          }, 3000);
+        };
+        poll();
+      }
+    }).catch((reason: unknown) => { if (request === historyRequestRef.current) setError(reason instanceof Error ? reason.message : "대화를 불러오지 못했습니다."); });
   }, []);
 
   useEffect(() => {
